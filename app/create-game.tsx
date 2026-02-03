@@ -194,12 +194,12 @@ export default function CreateGameScreen() {
 
 
     const renderHeader = () => (
-        <View style={styles.headerContent}>
+            <View style={styles.headerContent}>
             <Text style={styles.screenTitle}>{t('create_game.title')}</Text>
 
             <View style={styles.searchPillWrapper}>
                 <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
+                    colors={['rgba(255, 255, 255, 0.9)', 'rgba(248, 250, 252, 0.95)']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={StyleSheet.absoluteFill}
@@ -245,12 +245,12 @@ export default function CreateGameScreen() {
                             !isSearchFocused && { height: 0, opacity: 0, padding: 0, margin: 0 }
                         ],
                         row: { backgroundColor: 'transparent', padding: 13, height: 44, flexDirection: isRTL ? 'row-reverse' : 'row' },
-                        description: { color: 'white', fontSize: 14 },
-                        separator: { backgroundColor: 'rgba(255,255,255,0.1)' },
+                        description: { color: COLORS.textPrimary, fontSize: 14 },
+                        separator: { backgroundColor: COLORS.cardGlassBorder },
                     }}
 
                     textInputProps={{
-                        placeholderTextColor: 'rgba(255,255,255,0.4)',
+                        placeholderTextColor: COLORS.textTertiary,
                         selectionColor: COLORS.turfGreen,
                         autoCorrect: false,
                         onFocus: () => setIsSearchFocused(true),
@@ -380,7 +380,7 @@ export default function CreateGameScreen() {
                         mode="date"
                         display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                         onChange={onDateChange}
-                        themeVariant="dark"
+                        themeVariant="light"
                     />
                 )}
                 {showTimePicker && (
@@ -389,7 +389,7 @@ export default function CreateGameScreen() {
                         mode="time"
                         display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                         onChange={onTimeChange}
-                        themeVariant="dark"
+                        themeVariant="light"
                     />
                 )}
 
@@ -428,7 +428,7 @@ export default function CreateGameScreen() {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={['#050B08', '#00261A', '#004D33']}
+                colors={COLORS.backgroundGradient as any}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -437,7 +437,7 @@ export default function CreateGameScreen() {
             <SafeAreaView style={styles.safeArea}>
                 <View style={[styles.header, isRTL && { flexDirection: 'row-reverse' }]}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color="white" />
+                        <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color={COLORS.textPrimary} />
                     </TouchableOpacity>
                 </View>
 
@@ -471,24 +471,16 @@ export default function CreateGameScreen() {
 }
 
 const mapStyle = [
-    { "elementType": "geometry", "stylers": [{ "color": "#242f3e" }] },
-    { "elementType": "labels.text.fill", "stylers": [{ "color": "#746855" }] },
-    { "elementType": "labels.text.stroke", "stylers": [{ "color": "#242f3e" }] },
-    { "featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
-    { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
-    { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#263c3f" }] },
-    { "featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{ "color": "#6b9a76" }] },
-    { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#38414e" }] },
-    { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#212a37" }] },
-    { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#9ca5b3" }] },
-    { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#746855" }] },
-    { "featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{ "color": "#1f2835" }] },
-    { "featureType": "road.highway", "elementType": "labels.text.fill", "stylers": [{ "color": "#f3d19c" }] },
-    { "featureType": "transit", "elementType": "geometry", "stylers": [{ "color": "#2f3948" }] },
-    { "featureType": "transit.station", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
-    { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#17263c" }] },
-    { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#515c6d" }] },
-    { "featureType": "water", "elementType": "labels.text.stroke", "stylers": [{ "color": "#17263c" }] }
+    { "elementType": "geometry", "stylers": [{ "color": "#f1f5f9" }] },
+    { "elementType": "labels.text.fill", "stylers": [{ "color": "#64748b" }] },
+    { "elementType": "labels.text.stroke", "stylers": [{ "color": "#f1f5f9" }] },
+    { "featureType": "poi", "elementType": "geometry", "stylers": [{ "color": "#e2e8f0" }] },
+    { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#e8f5ec" }] },
+    { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#ffffff" }] },
+    { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#e2e8f0" }] },
+    { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#dbeafe" }] },
+    { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#cfe8ff" }] },
+    { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#64748b" }] }
 ];
 
 const styles = StyleSheet.create({
@@ -508,7 +500,9 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderWidth: 1,
+        borderColor: COLORS.cardGlassBorder,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -524,12 +518,9 @@ const styles = StyleSheet.create({
     screenTitle: {
         fontSize: 26,
         fontWeight: 'bold',
-        color: 'white',
+        color: COLORS.textPrimary,
         fontFamily: FONTS.heading,
         marginBottom: SPACING.l,
-        textShadowColor: 'rgba(0, 0, 0, 0.5)',
-        textShadowOffset: { width: 0, height: 2 },
-        textShadowRadius: 4,
         flexWrap: 'wrap',
     },
     searchPillWrapper: {
@@ -537,17 +528,17 @@ const styles = StyleSheet.create({
         height: 56,
         borderRadius: 28,
         borderWidth: 1.5,
-        borderColor: 'rgba(255,255,255,0.15)',
+        borderColor: COLORS.inputBorder,
         zIndex: 1000,
         overflow: 'visible',
-        backgroundColor: 'transparent',
+        backgroundColor: COLORS.inputBackground,
     },
 
 
 
     searchInput: {
         backgroundColor: 'transparent',
-        color: 'white',
+        color: COLORS.textPrimary,
         height: 56,
         fontSize: 16,
         paddingHorizontal: 20,
@@ -557,11 +548,11 @@ const styles = StyleSheet.create({
     },
 
     searchListView: {
-        backgroundColor: '#0A120E',
+        backgroundColor: COLORS.cardSolid,
         borderRadius: BORDER_RADIUS.m,
         marginTop: 5,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: COLORS.cardGlassBorder,
         elevation: 5,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
@@ -575,7 +566,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         marginBottom: SPACING.l,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: COLORS.cardGlassBorder,
     },
     map: {
         ...StyleSheet.absoluteFillObject,
@@ -585,15 +576,17 @@ const styles = StyleSheet.create({
         bottom: 10,
         left: 10,
         right: 10,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 20,
         flexDirection: 'row',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.cardGlassBorder,
     },
     addressText: {
-        color: 'white',
+        color: COLORS.textPrimary,
         fontSize: 12,
         marginLeft: 6,
         flex: 1,
@@ -603,13 +596,12 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.xl,
     },
     label: {
-        color: COLORS.turfGreen,
+        color: COLORS.textSecondary,
         fontSize: 14,
-        fontWeight: 'bold',
+        fontWeight: '600',
         marginBottom: SPACING.s,
         fontFamily: FONTS.body,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
+        letterSpacing: 0.2,
     },
     labelWrapper: {
         width: '100%',
@@ -618,13 +610,14 @@ const styles = StyleSheet.create({
 
 
     input: {
-        backgroundColor: 'transparent',
+        backgroundColor: COLORS.inputBackground,
         borderRadius: BORDER_RADIUS.m,
         padding: SPACING.m,
-        color: 'white',
+        color: COLORS.textPrimary,
         fontSize: 16,
         marginBottom: SPACING.l,
-        borderWidth: 0,
+        borderWidth: 1,
+        borderColor: COLORS.inputBorder,
     },
     textArea: {
         height: 100,
@@ -637,13 +630,13 @@ const styles = StyleSheet.create({
     },
     formatOption: {
         flex: 1,
-        backgroundColor: 'transparent',
+        backgroundColor: COLORS.inputBackground,
         paddingVertical: SPACING.m,
         alignItems: 'center',
         borderRadius: BORDER_RADIUS.m,
         marginHorizontal: 4,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: COLORS.inputBorder,
     },
     formatOptionActive: {
         backgroundColor: COLORS.turfGreen,
@@ -666,14 +659,14 @@ const styles = StyleSheet.create({
         flex: 0.48,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'transparent',
+        backgroundColor: COLORS.inputBackground,
         padding: SPACING.m,
         borderRadius: BORDER_RADIUS.m,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: COLORS.inputBorder,
     },
     dateTimeText: {
-        color: 'white',
+        color: COLORS.textPrimary,
         fontSize: 14,
     },
     submitButtonContainer: {
