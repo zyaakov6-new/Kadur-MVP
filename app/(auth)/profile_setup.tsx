@@ -62,54 +62,72 @@ export default function ProfileSetupScreen() {
             });
             return;
         }
-        if (!session?.user) return;
+        if (!session?.user) {
+            setModalConfig({
+                visible: true,
+                title: 'משהו השתבש',
+                message: 'לא נמצאה התחברות פעילה. נסו להתחבר מחדש.',
+                type: 'error',
+                onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
+            });
+            return;
+        }
 
         setLoading(true);
-        const { error } = await supabase
-            .from('profiles')
-            .upsert({
-                id: session.user.id,
-                full_name: fullName,
-                city: city,
-                favorite_position: position,
-            });
-        setLoading(false);
+        try {
+            const upsertPromise = supabase
+                .from('profiles')
+                .upsert({
+                    id: session.user.id,
+                    full_name: fullName,
+                    city: city,
+                    favorite_position: position,
+                });
 
-        if (error) {
-            const isMissingProfiles = error.message?.includes('profiles')
-                || error.message?.includes('schema cache');
-            if (isMissingProfiles) {
+            const timeoutPromise = new Promise<{ error: { message: string } }>((resolve) => {
+                setTimeout(() => resolve({ error: { message: 'בקשה נתקעה. נסו שוב בעוד כמה שניות.' } }), 12000);
+            });
+
+            const { error } = await Promise.race([upsertPromise, timeoutPromise]);
+
+            if (error) {
+                const isMissingProfiles = error.message?.includes('profiles')
+                    || error.message?.includes('schema cache');
+                if (isMissingProfiles) {
+                    setModalConfig({
+                        visible: true,
+                        title: 'המשך משחק',
+                        message: 'מסך הפרופיל יופעל כשמסד הנתונים יהיה מוכן. ממשיכים לאפליקציה.',
+                        type: 'success',
+                        onClose: () => {
+                            setModalConfig(prev => ({ ...prev, visible: false }));
+                            router.replace('/(tabs)');
+                        }
+                    });
+                    return;
+                }
+
                 setModalConfig({
                     visible: true,
-                    title: 'המשך משחק',
-                    message: 'מסך הפרופיל יופעל כשמסד הנתונים יהיה מוכן. ממשיכים לאפליקציה.',
+                    title: 'משהו השתבש',
+                    message: error.message,
+                    type: 'error',
+                    onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
+                });
+            } else {
+                setModalConfig({
+                    visible: true,
+                    title: 'הכול מוכן',
+                    message: 'הפרופיל נשמר בהצלחה.',
                     type: 'success',
                     onClose: () => {
                         setModalConfig(prev => ({ ...prev, visible: false }));
                         router.replace('/(tabs)');
                     }
                 });
-                return;
             }
-
-            setModalConfig({
-                visible: true,
-                title: 'משהו השתבש',
-                message: error.message,
-                type: 'error',
-                onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
-            });
-        } else {
-            setModalConfig({
-                visible: true,
-                title: 'הכול מוכן',
-                message: 'הפרופיל נשמר בהצלחה.',
-                type: 'success',
-                onClose: () => {
-                    setModalConfig(prev => ({ ...prev, visible: false }));
-                    router.replace('/(tabs)');
-                }
-            });
+        } finally {
+            setLoading(false);
         }
     };
 
