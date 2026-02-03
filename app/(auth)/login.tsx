@@ -17,7 +17,6 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { LanguageSwitcher } from '../../components/ui/LanguageSwitcher';
 import { FeedbackModal } from '../../components/ui/FeedbackModal';
-import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../contexts/LanguageContext';
 import Animated, {
     FadeIn,
@@ -29,7 +28,6 @@ import Animated, {
     withRepeat,
     withTiming,
     withSequence,
-    interpolate,
     Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -38,18 +36,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width, height } = Dimensions.get('window');
 
 const COLORS = {
-    primary: '#10B981',
-    primaryDark: '#0E9F6E',
-    primaryLight: '#34D399',
-    accent: '#F59E0B',
-    background: '#050B0A',
-    surface: '#0E1513',
-    surfaceLight: '#15201C',
-    text: '#FFFFFF',
-    textSecondary: 'rgba(255,255,255,0.68)',
-    textMuted: 'rgba(255,255,255,0.38)',
-    error: '#EF4444',
-    border: 'rgba(255,255,255,0.12)',
+    primary: '#0A7B5F',
+    primaryDark: '#075E49',
+    primaryLight: '#11A882',
+    accent: '#F5B041',
+    background: '#F4F6F8',
+    surface: '#FFFFFF',
+    surfaceLight: '#F9FAFB',
+    text: '#0B0F12',
+    textSecondary: '#5F6B7A',
+    textMuted: '#9AA4AF',
+    error: '#D14343',
+    border: '#E5E7EB',
 };
 
 type InputFieldProps = {
@@ -103,6 +101,7 @@ const InputField = memo(({
             <View style={[
                 styles.inputContainer,
                 isFocused && styles.inputContainerFocused,
+                isRTL && styles.inputContainerRtl,
             ]}>
                 <View style={styles.inputIconContainer}>
                     <Ionicons
@@ -113,7 +112,10 @@ const InputField = memo(({
                 </View>
                 <TextInput
                     ref={inputRef}
-                    style={[styles.input, isRTL && { textAlign: 'right' }]}
+                    style={[
+                        styles.input,
+                        isRTL && { textAlign: 'right', writingDirection: 'rtl' },
+                    ]}
                     placeholder={placeholder}
                     placeholderTextColor={COLORS.textMuted}
                     value={value}
@@ -160,7 +162,6 @@ export default function LoginScreen() {
     const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
 
     const router = useRouter();
-    const { t } = useTranslation();
     const { isRTL } = useLanguage();
 
     const passwordRef = useRef<TextInput>(null);
@@ -220,9 +221,9 @@ export default function LoginScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setModalConfig({
             visible: true,
-            title: t('common.error'),
+            title: 'משהו השתבש',
             message: message.includes('Network') || message.includes('fetch')
-                ? 'Connection failed. Please check your internet and try again.'
+                ? 'אין חיבור לרשת. בדקו את האינטרנט ונסו שוב.'
                 : message,
             type: 'error',
             onClose: () => setModalConfig(prev => ({ ...prev, visible: false })),
@@ -232,18 +233,23 @@ export default function LoginScreen() {
     const handleAuth = async () => {
         const normalizedEmail = email.trim().toLowerCase();
 
+        if (connectionStatus === 'error') {
+            showError('אין חיבור לשרת כרגע. נסו שוב בעוד כמה רגעים.');
+            return;
+        }
+
         if (!normalizedEmail || !password) {
-            showError(t('create_game.error_fill_fields'));
+            showError('נא למלא את כל השדות');
             return;
         }
 
         if (isSignUp && password !== confirmPassword) {
-            showError('Passwords do not match');
+            showError('הסיסמאות אינן תואמות');
             return;
         }
 
         if (password.length < 6) {
-            showError('Password must be at least 6 characters');
+            showError('הסיסמה חייבת להיות לפחות 6 תווים');
             return;
         }
 
@@ -257,7 +263,23 @@ export default function LoginScreen() {
                     showError(error.message);
                 } else {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    router.replace('/(auth)/profile_setup');
+
+                    if (data?.session) {
+                        router.replace('/(auth)/profile_setup');
+                    } else {
+                        setModalConfig({
+                            visible: true,
+                            title: 'בדיקת אימייל',
+                            message: 'שלחנו לך אימייל לאימות החשבון. לאחר האימות, אפשר להתחבר.',
+                            type: 'success',
+                            onClose: () => {
+                                setModalConfig(prev => ({ ...prev, visible: false }));
+                                setIsSignUp(false);
+                                setPassword('');
+                                setConfirmPassword('');
+                            },
+                        });
+                    }
                 }
             } else {
                 const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
@@ -275,7 +297,7 @@ export default function LoginScreen() {
                 }
             }
         } catch (err: any) {
-            showError(err.message || 'An unexpected error occurred');
+            showError(err.message || 'אירעה שגיאה לא צפויה');
         }
 
         setLoading(false);
@@ -296,7 +318,7 @@ export default function LoginScreen() {
         <View style={styles.container}>
             {/* Background */}
             <LinearGradient
-                colors={['#050B0A', '#0B1713', '#0A1411']}
+                colors={['#F8FAFC', '#EEF2F7', '#F6F8FB']}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -308,29 +330,31 @@ export default function LoginScreen() {
             <View style={styles.ambientGlow} />
 
             {/* Language Switcher */}
-            <SafeAreaView style={styles.topBar} edges={['top']}>
+            <SafeAreaView style={[styles.topBar, isRTL && { flexDirection: 'row-reverse' }]} edges={['top']}>
                 <View style={styles.brandPill}>
                     <Ionicons name="football" size={14} color={COLORS.primaryLight} />
-                    <Text style={styles.brandPillText}>KADUR</Text>
+                    <Text style={styles.brandPillText}>כדור</Text>
                 </View>
-                <View style={styles.topBarRight}>
+                <View style={[styles.topBarRight, isRTL && { flexDirection: 'row-reverse' }]}>
                     <TouchableOpacity
                         onPress={checkConnection}
                         style={[
                             styles.connectionBadge,
+                            isRTL && styles.connectionBadgeRtl,
                             connectionStatus === 'connected' && styles.connectionOk,
                             connectionStatus === 'error' && styles.connectionError,
                         ]}
                     >
                         <View style={[
                             styles.connectionDot,
+                            isRTL && styles.connectionDotRtl,
                             connectionStatus === 'checking' && { backgroundColor: COLORS.accent },
                             connectionStatus === 'connected' && { backgroundColor: COLORS.primary },
                             connectionStatus === 'error' && { backgroundColor: COLORS.error },
                         ]} />
                         <Text style={styles.connectionText}>
-                            {connectionStatus === 'checking' ? 'Connecting...' :
-                                connectionStatus === 'connected' ? 'Online' : 'Offline'}
+                            {connectionStatus === 'checking' ? 'מתחבר...' :
+                                connectionStatus === 'connected' ? 'מחובר' : 'מנותק'}
                         </Text>
                     </TouchableOpacity>
                     <LanguageSwitcher />
@@ -364,14 +388,14 @@ export default function LoginScreen() {
                             </LinearGradient>
                         </Animated.View>
 
-                        <Text style={styles.heroEyebrow}>KADUR</Text>
-                        <Text style={styles.heroTitle}>
-                            {isSignUp ? 'Create your account' : 'Welcome back'}
+                        <Text style={styles.heroEyebrow}>כדור</Text>
+                        <Text style={[styles.heroTitle, isRTL && { textAlign: 'right' }]}>
+                            {isSignUp ? 'יוצרים חשבון חדש' : 'ברוכים השבים'}
                         </Text>
-                        <Text style={styles.heroSubtitle}>
+                        <Text style={[styles.heroSubtitle, isRTL && { textAlign: 'right' }]}>
                             {isSignUp
-                                ? 'Start organizing pickup football in minutes.'
-                                : 'Sign in to keep your team moving.'}
+                                ? 'תוך כמה דקות מתחילים לארגן משחקים באזור שלך.'
+                                : 'התחברו והמשיכו לשחק עם החברים.'}
                         </Text>
                     </Animated.View>
 
@@ -380,21 +404,21 @@ export default function LoginScreen() {
                         entering={FadeInUp.delay(300).springify()}
                         style={styles.formCard}
                     >
-                        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+                        <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
                         <LinearGradient
-                            colors={['rgba(17,24,39,0.55)', 'rgba(8,12,11,0.95)']}
+                            colors={['rgba(255,255,255,0.9)', 'rgba(249,250,251,0.98)']}
                             style={StyleSheet.absoluteFill}
                         />
 
                         {/* Segmented Control */}
-                        <View style={styles.segmented}>
+                        <View style={[styles.segmented, isRTL && { flexDirection: 'row-reverse' }]}>
                             <TouchableOpacity
                                 style={[styles.segmentButton, !isSignUp && styles.segmentButtonActive]}
                                 onPress={() => !isSignUp || toggleMode()}
                                 activeOpacity={0.8}
                             >
                                 <Text style={[styles.segmentText, !isSignUp && styles.segmentTextActive]}>
-                                    Sign In
+                                    התחברות
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -403,7 +427,7 @@ export default function LoginScreen() {
                                 activeOpacity={0.8}
                             >
                                 <Text style={[styles.segmentText, isSignUp && styles.segmentTextActive]}>
-                                    Create Account
+                                    הרשמה
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -412,8 +436,8 @@ export default function LoginScreen() {
                         <View style={styles.inputsContainer}>
                             <InputField
                                 icon="mail-outline"
-                                label="Email"
-                                placeholder="Email address"
+                                label="אימייל"
+                                placeholder="כתובת אימייל"
                                 value={email}
                                 onChangeText={setEmail}
                                 keyboardType="email-address"
@@ -431,8 +455,8 @@ export default function LoginScreen() {
                             <InputField
                                 inputRef={passwordRef}
                                 icon="lock-closed-outline"
-                                label="Password"
-                                placeholder="Password"
+                                label="סיסמה"
+                                placeholder="סיסמה"
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry
@@ -440,7 +464,7 @@ export default function LoginScreen() {
                                 onSubmitEditing={() => isSignUp ? confirmPasswordRef.current?.focus() : handleAuth()}
                                 textContentType={isSignUp ? 'newPassword' : 'password'}
                                 autoComplete={isSignUp ? 'new-password' : 'password'}
-                                helper={isSignUp ? 'Use at least 6 characters.' : undefined}
+                                helper={isSignUp ? 'לפחות 6 תווים.' : undefined}
                                 isRTL={isRTL}
                                 showPassword={showPassword}
                                 onToggleShowPassword={() => setShowPassword(!showPassword)}
@@ -453,8 +477,8 @@ export default function LoginScreen() {
                                     <InputField
                                         inputRef={confirmPasswordRef}
                                         icon="shield-checkmark-outline"
-                                        label="Confirm password"
-                                        placeholder="Confirm password"
+                                        label="אימות סיסמה"
+                                        placeholder="אימות סיסמה"
                                         value={confirmPassword}
                                         onChangeText={setConfirmPassword}
                                         secureTextEntry
@@ -476,12 +500,12 @@ export default function LoginScreen() {
                         <TouchableOpacity
                             style={[styles.submitButton, loading && styles.submitButtonDisabled]}
                             onPress={handleAuth}
-                            disabled={loading || connectionStatus === 'error'}
+                            disabled={loading}
                             activeOpacity={0.8}
                         >
                             <LinearGradient
                                 colors={loading || connectionStatus === 'error'
-                                    ? ['#2A3531', '#1A2420']
+                                    ? ['#B7C0CA', '#9EA8B3']
                                     : [COLORS.primaryLight, COLORS.primary]}
                                 style={styles.submitButtonGradient}
                                 start={{ x: 0, y: 0 }}
@@ -493,7 +517,7 @@ export default function LoginScreen() {
                                         style={styles.loadingContainer}
                                     >
                                         <Ionicons name="football" size={20} color="white" />
-                                        <Text style={styles.submitButtonText}>Loading...</Text>
+                                        <Text style={styles.submitButtonText}>טוען...</Text>
                                     </Animated.View>
                                 ) : (
                                     <>
@@ -503,7 +527,7 @@ export default function LoginScreen() {
                                             color="white"
                                         />
                                         <Text style={styles.submitButtonText}>
-                                            {isSignUp ? 'Create Account' : 'Continue'}
+                                            {isSignUp ? 'בואו נשחק' : 'המשך'}
                                         </Text>
                                         <Ionicons name="arrow-forward" size={18} color="white" />
                                     </>
@@ -511,12 +535,18 @@ export default function LoginScreen() {
                             </LinearGradient>
                         </TouchableOpacity>
 
+                        {connectionStatus === 'error' && (
+                            <Text style={styles.connectionHint}>
+                                אין חיבור לשרת. נסו שוב בעוד כמה רגעים.
+                            </Text>
+                        )}
+
                         {/* Subtle Helper */}
                         <View style={styles.helperRow}>
                             <Text style={styles.helperText}>
                                 {isSignUp
-                                    ? 'You can change your details later in settings.'
-                                    : 'We never share your email with anyone.'}
+                                    ? 'אפשר לעדכן את הפרטים בהמשך בהגדרות.'
+                                    : 'לא משתפים את האימייל שלך עם אף אחד.'}
                             </Text>
                         </View>
                     </Animated.View>
@@ -527,7 +557,7 @@ export default function LoginScreen() {
                         style={styles.footer}
                     >
                         <Text style={styles.footerText}>
-                            By continuing, you agree to our Terms & Privacy Policy
+                            בהמשך השימוש אתם מאשרים את תנאי השימוש והפרטיות
                         </Text>
                     </Animated.View>
                 </ScrollView>
@@ -539,7 +569,7 @@ export default function LoginScreen() {
                 title={modalConfig.title}
                 message={modalConfig.message}
                 type={modalConfig.type}
-                buttonText="OK"
+                buttonText="הבנתי"
             />
         </View>
     );
@@ -555,8 +585,8 @@ const styles = StyleSheet.create({
         width: 300,
         height: 300,
         borderRadius: 150,
-        backgroundColor: COLORS.primary,
-        opacity: 0.05,
+        backgroundColor: '#DFF3ED',
+        opacity: 0.9,
         top: -120,
         right: -120,
     },
@@ -565,8 +595,8 @@ const styles = StyleSheet.create({
         width: 200,
         height: 200,
         borderRadius: 100,
-        backgroundColor: COLORS.accent,
-        opacity: 0.04,
+        backgroundColor: '#FCEBD1',
+        opacity: 0.9,
         bottom: 80,
         left: -70,
     },
@@ -575,10 +605,10 @@ const styles = StyleSheet.create({
         width: 420,
         height: 420,
         borderRadius: 210,
-        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+        backgroundColor: 'rgba(17, 168, 130, 0.18)',
         top: height * 0.18,
         left: -140,
-        opacity: 0.5,
+        opacity: 0.35,
     },
     topBar: {
         flexDirection: 'row',
@@ -599,15 +629,20 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 16,
-        backgroundColor: 'rgba(255,255,255,0.06)',
+        backgroundColor: 'rgba(255,255,255,0.9)',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.08)',
+        borderColor: COLORS.border,
+        shadowColor: '#0B0F12',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 2,
     },
     brandPillText: {
-        color: 'white',
+        color: COLORS.text,
         fontSize: 12,
         fontWeight: '700',
-        letterSpacing: 2,
+        letterSpacing: 1,
     },
     connectionBadge: {
         flexDirection: 'row',
@@ -615,19 +650,28 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 6,
         borderRadius: 18,
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    connectionBadgeRtl: {
+        flexDirection: 'row-reverse',
     },
     connectionOk: {
-        backgroundColor: 'rgba(16,185,129,0.1)',
+        backgroundColor: 'rgba(17,168,130,0.08)',
     },
     connectionError: {
-        backgroundColor: 'rgba(239,68,68,0.1)',
+        backgroundColor: 'rgba(209,67,67,0.08)',
     },
     connectionDot: {
         width: 6,
         height: 6,
         borderRadius: 3,
         marginRight: 6,
+    },
+    connectionDotRtl: {
+        marginRight: 0,
+        marginLeft: 6,
     },
     connectionText: {
         color: COLORS.textSecondary,
@@ -658,8 +702,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 16,
+        shadowOpacity: 0.25,
+        shadowRadius: 14,
         elevation: 12,
     },
     ballHighlight: {
@@ -688,15 +732,16 @@ const styles = StyleSheet.create({
     },
     heroEyebrow: {
         fontSize: 12,
-        letterSpacing: 4,
+        letterSpacing: 1,
         fontWeight: '700',
-        color: COLORS.textMuted,
+        color: COLORS.textSecondary,
         marginBottom: 6,
+        textAlign: 'center',
     },
     heroTitle: {
         fontSize: 28,
         fontWeight: '800',
-        color: 'white',
+        color: COLORS.text,
         textAlign: 'center',
     },
     heroSubtitle: {
@@ -711,17 +756,18 @@ const styles = StyleSheet.create({
         borderRadius: 26,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderColor: COLORS.border,
         padding: 24,
+        backgroundColor: 'rgba(255,255,255,0.9)',
     },
     segmented: {
         flexDirection: 'row',
-        backgroundColor: 'rgba(255,255,255,0.06)',
+        backgroundColor: 'rgba(15,23,42,0.04)',
         borderRadius: 16,
         padding: 4,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.08)',
+        borderColor: COLORS.border,
     },
     segmentButton: {
         flex: 1,
@@ -731,7 +777,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     segmentButtonActive: {
-        backgroundColor: 'rgba(255,255,255,0.14)',
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        shadowColor: '#0B0F12',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        elevation: 2,
     },
     segmentText: {
         color: COLORS.textSecondary,
@@ -740,7 +791,7 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     segmentTextActive: {
-        color: 'white',
+        color: COLORS.text,
         fontWeight: '700',
     },
     inputsContainer: {
@@ -761,13 +812,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         height: 56,
         borderRadius: 16,
-        backgroundColor: 'rgba(255,255,255,0.04)',
+        backgroundColor: COLORS.surfaceLight,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderColor: COLORS.border,
+    },
+    inputContainerRtl: {
+        flexDirection: 'row-reverse',
     },
     inputContainerFocused: {
         borderColor: COLORS.primary,
-        backgroundColor: 'rgba(16,185,129,0.06)',
+        backgroundColor: 'rgba(17,168,130,0.08)',
     },
     inputIconContainer: {
         width: 50,
@@ -777,7 +831,7 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         height: '100%',
-        color: 'white',
+        color: COLORS.text,
         fontSize: 15,
     },
     inputHelper: {
@@ -795,8 +849,8 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
         elevation: 8,
     },
     submitButtonDisabled: {
@@ -819,6 +873,12 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         letterSpacing: 0.2,
+    },
+    connectionHint: {
+        marginTop: 10,
+        color: COLORS.error,
+        fontSize: 12,
+        textAlign: 'center',
     },
     helperRow: {
         marginTop: 14,
