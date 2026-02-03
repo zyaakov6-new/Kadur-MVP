@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import {
     View,
     Text,
@@ -51,6 +51,103 @@ const COLORS = {
     error: '#EF4444',
     border: 'rgba(255,255,255,0.12)',
 };
+
+type InputFieldProps = {
+    icon: any;
+    label: string;
+    placeholder: string;
+    value: string;
+    onChangeText: (text: string) => void;
+    secureTextEntry?: boolean;
+    keyboardType?: any;
+    autoCapitalize?: any;
+    fieldName: string;
+    onSubmitEditing?: () => void;
+    textContentType?: any;
+    autoComplete?: any;
+    inputRef?: React.Ref<TextInput>;
+    helper?: string;
+    isRTL: boolean;
+    showPassword: boolean;
+    onToggleShowPassword: () => void;
+    focusedField: string | null;
+    setFocusedField: (name: string | null) => void;
+};
+
+const InputField = memo(({
+    icon,
+    label,
+    placeholder,
+    value,
+    onChangeText,
+    secureTextEntry,
+    keyboardType = 'default',
+    autoCapitalize = 'none',
+    fieldName,
+    onSubmitEditing,
+    textContentType,
+    autoComplete,
+    inputRef,
+    helper,
+    isRTL,
+    showPassword,
+    onToggleShowPassword,
+    focusedField,
+    setFocusedField,
+}: InputFieldProps) => {
+    const isFocused = focusedField === fieldName;
+
+    return (
+        <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, isRTL && { textAlign: 'right' }]}>{label}</Text>
+            <View style={[
+                styles.inputContainer,
+                isFocused && styles.inputContainerFocused,
+            ]}>
+                <View style={styles.inputIconContainer}>
+                    <Ionicons
+                        name={icon}
+                        size={20}
+                        color={isFocused ? COLORS.primary : COLORS.textMuted}
+                    />
+                </View>
+                <TextInput
+                    ref={inputRef}
+                    style={[styles.input, isRTL && { textAlign: 'right' }]}
+                    placeholder={placeholder}
+                    placeholderTextColor={COLORS.textMuted}
+                    value={value}
+                    onChangeText={onChangeText}
+                    secureTextEntry={secureTextEntry && !showPassword}
+                    keyboardType={keyboardType}
+                    autoCapitalize={autoCapitalize}
+                    onFocus={() => setFocusedField(fieldName)}
+                    onBlur={() => setFocusedField(null)}
+                    selectionColor={COLORS.primary}
+                    onSubmitEditing={onSubmitEditing}
+                    returnKeyType={onSubmitEditing ? 'next' : 'done'}
+                    textContentType={textContentType}
+                    autoComplete={autoComplete}
+                />
+                {secureTextEntry && (
+                    <TouchableOpacity
+                        style={styles.eyeButton}
+                        onPress={onToggleShowPassword}
+                    >
+                        <Ionicons
+                            name={showPassword ? 'eye-off' : 'eye'}
+                            size={20}
+                            color={COLORS.textMuted}
+                        />
+                    </TouchableOpacity>
+                )}
+            </View>
+            {!!helper && (
+                <Text style={[styles.inputHelper, isRTL && { textAlign: 'right' }]}>{helper}</Text>
+            )}
+        </View>
+    );
+});
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
@@ -195,76 +292,6 @@ export default function LoginScreen() {
         setConfirmPassword('');
     };
 
-    const InputField = ({
-        icon,
-        label,
-        placeholder,
-        value,
-        onChangeText,
-        secureTextEntry,
-        keyboardType = 'default',
-        autoCapitalize = 'none',
-        fieldName,
-        onSubmitEditing,
-        textContentType,
-        autoComplete,
-        inputRef,
-        helper,
-    }: any) => {
-        const isFocused = focusedField === fieldName;
-
-        return (
-            <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, isRTL && { textAlign: 'right' }]}>{label}</Text>
-                <View style={[
-                    styles.inputContainer,
-                    isFocused && styles.inputContainerFocused,
-                ]}>
-                    <View style={styles.inputIconContainer}>
-                        <Ionicons
-                            name={icon}
-                            size={20}
-                            color={isFocused ? COLORS.primary : COLORS.textMuted}
-                        />
-                    </View>
-                    <TextInput
-                        ref={inputRef}
-                        style={[styles.input, isRTL && { textAlign: 'right' }]}
-                        placeholder={placeholder}
-                        placeholderTextColor={COLORS.textMuted}
-                        value={value}
-                        onChangeText={onChangeText}
-                        secureTextEntry={secureTextEntry && !showPassword}
-                        keyboardType={keyboardType}
-                        autoCapitalize={autoCapitalize}
-                        onFocus={() => setFocusedField(fieldName)}
-                        onBlur={() => setFocusedField(null)}
-                        selectionColor={COLORS.primary}
-                        onSubmitEditing={onSubmitEditing}
-                        returnKeyType={onSubmitEditing ? 'next' : 'done'}
-                        textContentType={textContentType}
-                        autoComplete={autoComplete}
-                    />
-                    {secureTextEntry && (
-                        <TouchableOpacity
-                            style={styles.eyeButton}
-                            onPress={() => setShowPassword(!showPassword)}
-                        >
-                            <Ionicons
-                                name={showPassword ? 'eye-off' : 'eye'}
-                                size={20}
-                                color={COLORS.textMuted}
-                            />
-                        </TouchableOpacity>
-                    )}
-                </View>
-                {!!helper && (
-                    <Text style={[styles.inputHelper, isRTL && { textAlign: 'right' }]}>{helper}</Text>
-                )}
-            </View>
-        );
-    };
-
     return (
         <View style={styles.container}>
             {/* Background */}
@@ -394,6 +421,11 @@ export default function LoginScreen() {
                                 onSubmitEditing={() => passwordRef.current?.focus()}
                                 textContentType="emailAddress"
                                 autoComplete="email"
+                                isRTL={isRTL}
+                                showPassword={showPassword}
+                                onToggleShowPassword={() => setShowPassword(!showPassword)}
+                                focusedField={focusedField}
+                                setFocusedField={setFocusedField}
                             />
 
                             <InputField
@@ -409,6 +441,11 @@ export default function LoginScreen() {
                                 textContentType={isSignUp ? 'newPassword' : 'password'}
                                 autoComplete={isSignUp ? 'new-password' : 'password'}
                                 helper={isSignUp ? 'Use at least 6 characters.' : undefined}
+                                isRTL={isRTL}
+                                showPassword={showPassword}
+                                onToggleShowPassword={() => setShowPassword(!showPassword)}
+                                focusedField={focusedField}
+                                setFocusedField={setFocusedField}
                             />
 
                             {isSignUp && (
@@ -425,6 +462,11 @@ export default function LoginScreen() {
                                         onSubmitEditing={handleAuth}
                                         textContentType="newPassword"
                                         autoComplete="new-password"
+                                        isRTL={isRTL}
+                                        showPassword={showPassword}
+                                        onToggleShowPassword={() => setShowPassword(!showPassword)}
+                                        focusedField={focusedField}
+                                        setFocusedField={setFocusedField}
                                     />
                                 </Animated.View>
                             )}
