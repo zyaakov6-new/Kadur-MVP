@@ -1,49 +1,49 @@
 export const COLORS = {
-  // Brand Colors - Rich, premium palette
-  turfGreen: '#00875A',
-  turfGreenLight: '#00A86B',
-  turfGreenDark: '#005C3D',
-  accentOrange: '#FF6B35',
-  accentOrangeLight: '#FF8C5A',
-  accentGold: '#FFD93D',
+  // Brand Colors - Apple-inspired calm palette
+  turfGreen: '#0A7B5F',
+  turfGreenLight: '#11A882',
+  turfGreenDark: '#075E49',
+  accentOrange: '#F5B041',
+  accentOrangeLight: '#F8C471',
+  accentGold: '#F9E79F',
 
-  // Backgrounds - Deep, sophisticated
-  darkBackground: '#0A0F0D',
-  darkBackgroundSecondary: '#111916',
-  backgroundGradient: ['#0A0F0D', '#0D1A14', '#102820'] as const,
-  backgroundGradientLight: ['#102820', '#153D30', '#1A4D3D'] as const,
+  // Backgrounds - Bright, premium
+  darkBackground: '#F4F6F8',
+  darkBackgroundSecondary: '#EEF2F7',
+  backgroundGradient: ['#F8FAFC', '#EEF2F7', '#F6F8FB'] as const,
+  backgroundGradientLight: ['#FFFFFF', '#F7F9FC', '#EEF2F7'] as const,
 
   // Glass & Cards
-  cardGlass: 'rgba(255, 255, 255, 0.05)',
-  cardGlassStrong: 'rgba(255, 255, 255, 0.1)',
-  cardGlassBorder: 'rgba(255, 255, 255, 0.08)',
-  cardSolid: '#121A17',
-  cardSolidLight: '#1A2822',
+  cardGlass: 'rgba(255, 255, 255, 0.7)',
+  cardGlassStrong: 'rgba(255, 255, 255, 0.9)',
+  cardGlassBorder: 'rgba(15, 23, 42, 0.08)',
+  cardSolid: '#FFFFFF',
+  cardSolidLight: '#F9FAFB',
 
   // Text Hierarchy
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.65)',
-  textTertiary: 'rgba(255, 255, 255, 0.4)',
-  textMuted: 'rgba(255, 255, 255, 0.25)',
+  textPrimary: '#0B0F12',
+  textSecondary: '#5F6B7A',
+  textTertiary: '#9AA4AF',
+  textMuted: '#B6C0CA',
 
   // Status Colors
-  success: '#34D399',
-  successLight: 'rgba(52, 211, 153, 0.15)',
-  error: '#F87171',
-  errorLight: 'rgba(248, 113, 113, 0.15)',
-  warning: '#FBBF24',
-  warningLight: 'rgba(251, 191, 36, 0.15)',
-  info: '#60A5FA',
-  infoLight: 'rgba(96, 165, 250, 0.15)',
+  success: '#22C55E',
+  successLight: 'rgba(34, 197, 94, 0.12)',
+  error: '#EF4444',
+  errorLight: 'rgba(239, 68, 68, 0.12)',
+  warning: '#F59E0B',
+  warningLight: 'rgba(245, 158, 11, 0.12)',
+  info: '#3B82F6',
+  infoLight: 'rgba(59, 130, 246, 0.12)',
 
   // Interactive States
-  inputBackground: 'rgba(255, 255, 255, 0.04)',
-  inputBorder: 'rgba(255, 255, 255, 0.1)',
-  inputFocusBorder: 'rgba(0, 135, 90, 0.5)',
+  inputBackground: '#F9FAFB',
+  inputBorder: '#E5E7EB',
+  inputFocusBorder: 'rgba(10, 123, 95, 0.45)',
 
   // Overlays
-  overlayDark: 'rgba(0, 0, 0, 0.6)',
-  overlayLight: 'rgba(255, 255, 255, 0.1)',
+  overlayDark: 'rgba(15, 23, 42, 0.12)',
+  overlayLight: 'rgba(255, 255, 255, 0.6)',
 };
 
 export const SPACING = {

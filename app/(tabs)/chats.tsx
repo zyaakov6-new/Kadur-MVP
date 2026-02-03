@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 32,
         fontWeight: '800',
-        color: 'white',
+        color: COLORS.textPrimary,
         fontFamily: FONTS.heading,
         letterSpacing: 0.5,
     },
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
     },
     searchInput: {
         flex: 1,
-        color: 'white',
+        color: COLORS.textPrimary,
         fontSize: 15,
         fontFamily: FONTS.body,
     },
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
         fontFamily: FONTS.body,
     },
     activeTabText: {
-        color: 'white',
+        color: COLORS.textPrimary,
     },
     listContent: {
         paddingHorizontal: SPACING.m,
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     chatName: {
         fontSize: 16,
         fontWeight: '700',
-        color: 'white',
+        color: COLORS.textPrimary,
         fontFamily: FONTS.heading,
         marginBottom: 4,
     },

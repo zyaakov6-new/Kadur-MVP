@@ -23,9 +23,9 @@ export const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, 
     return (
         <View style={styles.container}>
             <View style={styles.shadowContainer}>
-                <BlurView intensity={40} tint="dark" style={styles.blurContainer}>
+                <BlurView intensity={25} tint="light" style={styles.blurContainer}>
                     <LinearGradient
-                        colors={['rgba(15, 25, 20, 0.92)', 'rgba(10, 18, 14, 0.95)']}
+                        colors={['rgba(255, 255, 255, 0.95)', 'rgba(248, 250, 252, 0.98)']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 0, y: 1 }}
                         style={StyleSheet.absoluteFill}
@@ -143,7 +143,7 @@ const TabIcon = ({
                 {/* Active background pill */}
                 <Animated.View style={[styles.activeBackground, animatedBackgroundStyle]}>
                     <LinearGradient
-                        colors={['rgba(0, 135, 90, 0.2)', 'rgba(0, 135, 90, 0.1)']}
+                        colors={['rgba(10, 123, 95, 0.14)', 'rgba(10, 123, 95, 0.08)']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={StyleSheet.absoluteFill}
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
         borderRadius: BORDER_RADIUS.xl,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: COLORS.cardGlassBorder,
     },
     topBorder: {
         position: 'absolute',
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
         left: SPACING.xl,
         right: SPACING.xl,
         height: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: COLORS.cardGlassBorder,
     },
     tabBar: {
         flexDirection: 'row',
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     tabLabel: {
-        color: COLORS.turfGreenLight,
+        color: COLORS.textSecondary,
         fontSize: 10,
         fontWeight: '600',
         fontFamily: FONTS.body,

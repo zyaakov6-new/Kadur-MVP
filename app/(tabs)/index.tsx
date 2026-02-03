@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   brandName: {
     fontSize: 36,
     fontWeight: '800',
-    color: 'white',
+    color: COLORS.textPrimary,
     fontFamily: FONTS.heading,
     letterSpacing: 2,
   },
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   gameTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: 'white',
+    color: COLORS.textPrimary,
     fontFamily: FONTS.heading,
     marginBottom: SPACING.xs,
   },

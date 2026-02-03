@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     avatarText: {
         fontSize: 28,
         fontWeight: '700',
-        color: 'white',
+        color: COLORS.textPrimary,
         fontFamily: FONTS.heading,
     },
     userInfo: {
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     userName: {
         fontSize: 22,
         fontWeight: '700',
-        color: 'white',
+        color: COLORS.textPrimary,
         fontFamily: FONTS.heading,
         marginBottom: 2,
     },
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
     statValue: {
         fontSize: 20,
         fontWeight: '700',
-        color: 'white',
+        color: COLORS.textPrimary,
         fontFamily: FONTS.heading,
     },
     statLabel: {
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: 'white',
+        color: COLORS.textPrimary,
         fontFamily: FONTS.heading,
     },
     sectionSubtitle: {
@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
         fontFamily: FONTS.body,
     },
     activeTabText: {
-        color: 'white',
+        color: COLORS.textPrimary,
     },
     gameCard: {
         marginBottom: SPACING.s,
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
     },
     gameTitle: {
         fontWeight: '600',
-        color: 'white',
+        color: COLORS.textPrimary,
         fontSize: 15,
         marginBottom: 2,
         fontFamily: FONTS.heading,

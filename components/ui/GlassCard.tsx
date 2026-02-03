@@ -26,26 +26,26 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     const getBackgroundColors = () => {
         switch (variant) {
             case 'elevated':
-                return ['rgba(20, 35, 28, 0.95)', 'rgba(15, 28, 22, 0.98)'];
+                return ['rgba(255, 255, 255, 0.98)', 'rgba(249, 250, 251, 0.98)'];
             case 'subtle':
-                return ['rgba(15, 25, 20, 0.85)', 'rgba(12, 22, 18, 0.9)'];
+                return ['rgba(255, 255, 255, 0.9)', 'rgba(248, 250, 252, 0.92)'];
             case 'outlined':
-                return ['rgba(10, 18, 14, 0.6)', 'rgba(8, 15, 12, 0.7)'];
+                return ['rgba(255, 255, 255, 0.75)', 'rgba(245, 247, 250, 0.8)'];
             default:
-                return ['rgba(16, 28, 22, 0.92)', 'rgba(12, 22, 17, 0.95)'];
+                return ['rgba(255, 255, 255, 0.94)', 'rgba(249, 250, 251, 0.98)'];
         }
     };
 
     const getBorderStyle = () => {
         switch (variant) {
             case 'elevated':
-                return { borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.12)' };
+                return { borderWidth: 1, borderColor: 'rgba(15, 23, 42, 0.08)' };
             case 'subtle':
-                return { borderWidth: 0.5, borderColor: 'rgba(255, 255, 255, 0.06)' };
+                return { borderWidth: 0.5, borderColor: 'rgba(15, 23, 42, 0.06)' };
             case 'outlined':
-                return { borderWidth: 1.5, borderColor: 'rgba(255, 255, 255, 0.15)' };
+                return { borderWidth: 1.5, borderColor: 'rgba(15, 23, 42, 0.12)' };
             default:
-                return { borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' };
+                return { borderWidth: 1, borderColor: 'rgba(15, 23, 42, 0.08)' };
         }
     };
 
@@ -71,7 +71,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 
     return (
         <View style={[styles.container, getBorderStyle(), getShadowStyle(), style]}>
-            <BlurView intensity={intensity} tint="dark" style={StyleSheet.absoluteFill} />
+            <BlurView intensity={intensity} tint="light" style={StyleSheet.absoluteFill} />
             <LinearGradient
                 colors={getBackgroundColors()}
                 start={{ x: 0, y: 0 }}
@@ -80,7 +80,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
             />
             {/* Subtle top highlight for depth */}
             <LinearGradient
-                colors={['rgba(255, 255, 255, 0.05)', 'transparent']}
+                colors={['rgba(255, 255, 255, 0.6)', 'transparent']}
                 start={{ x: 0.5, y: 0 }}
                 end={{ x: 0.5, y: 0.3 }}
                 style={[StyleSheet.absoluteFill, { borderRadius: BORDER_RADIUS.l }]}

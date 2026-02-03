@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 32,
     fontWeight: '800',
-    color: 'white',
+      color: COLORS.textPrimary,
     fontFamily: FONTS.heading,
     letterSpacing: 0.5,
   },
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     fontSize: 15,
-    color: 'white',
+      color: COLORS.textPrimary,
     fontFamily: FONTS.body,
   },
   clearButton: {
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
   },
   filterChipTextSelected: {
-    color: 'white',
+      color: COLORS.textPrimary,
   },
   cityFilterContainer: {
     marginTop: SPACING.s,
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   gameTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: 'white',
+      color: COLORS.textPrimary,
     fontFamily: FONTS.heading,
     marginBottom: SPACING.xs,
   },
