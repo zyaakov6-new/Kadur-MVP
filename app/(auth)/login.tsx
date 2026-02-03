@@ -9,7 +9,6 @@ import {
     Platform,
     Dimensions,
     ScrollView,
-    Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase, testSupabaseConnection } from '../../lib/supabase';
@@ -62,7 +61,6 @@ export default function LoginScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [focusedField, setFocusedField] = useState<string | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
-    const [keyboardVisible, setKeyboardVisible] = useState(false);
 
     const router = useRouter();
     const { t } = useTranslation();
@@ -104,13 +102,7 @@ export default function LoginScreen() {
             false
         );
 
-        // Keyboard listeners
-        const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-        const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
-
         return () => {
-            showSub.remove();
-            hideSub.remove();
         };
     }, []);
 
@@ -328,35 +320,33 @@ export default function LoginScreen() {
                     keyboardShouldPersistTaps="handled"
                 >
                     {/* Logo Section */}
-                    {!keyboardVisible && (
-                        <Animated.View
-                            entering={FadeInDown.delay(100).springify()}
-                            style={styles.logoSection}
-                        >
-                            <Animated.View style={[styles.ballContainer, ballAnimatedStyle]}>
-                                <LinearGradient
-                                    colors={[COLORS.primaryLight, COLORS.primary, COLORS.primaryDark]}
-                                    style={styles.ball}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                >
-                                    <View style={styles.ballHighlight} />
-                                    <View style={styles.ballPattern1} />
-                                    <View style={styles.ballPattern2} />
-                                </LinearGradient>
-                            </Animated.View>
-
-                            <Text style={styles.heroEyebrow}>KADUR</Text>
-                            <Text style={styles.heroTitle}>
-                                {isSignUp ? 'Create your account' : 'Welcome back'}
-                            </Text>
-                            <Text style={styles.heroSubtitle}>
-                                {isSignUp
-                                    ? 'Start organizing pickup football in minutes.'
-                                    : 'Sign in to keep your team moving.'}
-                            </Text>
+                    <Animated.View
+                        entering={FadeInDown.delay(100).springify()}
+                        style={styles.logoSection}
+                    >
+                        <Animated.View style={[styles.ballContainer, ballAnimatedStyle]}>
+                            <LinearGradient
+                                colors={[COLORS.primaryLight, COLORS.primary, COLORS.primaryDark]}
+                                style={styles.ball}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                            >
+                                <View style={styles.ballHighlight} />
+                                <View style={styles.ballPattern1} />
+                                <View style={styles.ballPattern2} />
+                            </LinearGradient>
                         </Animated.View>
-                    )}
+
+                        <Text style={styles.heroEyebrow}>KADUR</Text>
+                        <Text style={styles.heroTitle}>
+                            {isSignUp ? 'Create your account' : 'Welcome back'}
+                        </Text>
+                        <Text style={styles.heroSubtitle}>
+                            {isSignUp
+                                ? 'Start organizing pickup football in minutes.'
+                                : 'Sign in to keep your team moving.'}
+                        </Text>
+                    </Animated.View>
 
                     {/* Form Card */}
                     <Animated.View
