@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '../../lib/supabase';
+import { supabase, testSupabaseConnection } from '../../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
@@ -21,6 +21,7 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [isSignUp, setIsSignUp] = useState(false);
     const [focusedInput, setFocusedInput] = useState<string | null>(null);
+    const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
     const [modalConfig, setModalConfig] = useState<{
         visible: boolean;
         title: string;
@@ -38,6 +39,31 @@ export default function LoginScreen() {
     const { t } = useTranslation();
     const { isRTL } = useLanguage();
 
+    // Test connection on mount
+    useEffect(() => {
+        checkConnection();
+    }, []);
+
+    const checkConnection = async () => {
+        setConnectionStatus('checking');
+        const result = await testSupabaseConnection();
+        setConnectionStatus(result.success ? 'connected' : 'error');
+        if (!result.success) {
+            console.log('Connection test failed:', result.error);
+        }
+    };
+
+    const getNetworkErrorMessage = (errorMessage: string): string => {
+        if (errorMessage.includes('Network request failed') || errorMessage.includes('fetch')) {
+            return 'Unable to connect to the server. Please check:\n\n' +
+                '1. Your internet connection\n' +
+                '2. Try switching between WiFi and mobile data\n' +
+                '3. Disable VPN if you\'re using one\n' +
+                '4. Try again in a few moments';
+        }
+        return errorMessage;
+    };
+
     const handleAuth = async () => {
         if (!email || !password) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -54,71 +80,82 @@ export default function LoginScreen() {
         setLoading(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-        if (isSignUp) {
-            const { error } = await supabase.auth.signUp({
-                email,
-                password,
-            });
-
-            if (error) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                setModalConfig({
-                    visible: true,
-                    title: t('common.error'),
-                    message: error.message,
-                    type: 'error',
-                    onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
+        try {
+            if (isSignUp) {
+                const { error } = await supabase.auth.signUp({
+                    email,
+                    password,
                 });
-            } else {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                setModalConfig({
-                    visible: true,
-                    title: t('common.success'),
-                    message: t('auth.create_account'),
-                    type: 'success',
-                    onClose: () => {
-                        setModalConfig(prev => ({ ...prev, visible: false }));
-                        router.replace('/(auth)/profile_setup');
-                    }
-                });
-            }
-        } else {
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
 
-            if (error) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                setModalConfig({
-                    visible: true,
-                    title: t('common.error'),
-                    message: error.message,
-                    type: 'error',
-                    onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
-                });
-            } else {
-                const { data: profile, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('id')
-                    .eq('id', data.user.id)
-                    .maybeSingle();
-
-                if (profileError) {
+                if (error) {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                     setModalConfig({
                         visible: true,
                         title: t('common.error'),
-                        message: profileError.message,
+                        message: getNetworkErrorMessage(error.message),
                         type: 'error',
                         onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
                     });
-                } else if (profile) {
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    router.replace('/(tabs)');
                 } else {
-                    router.replace('/(auth)/profile_setup');
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    setModalConfig({
+                        visible: true,
+                        title: t('common.success'),
+                        message: t('auth.create_account'),
+                        type: 'success',
+                        onClose: () => {
+                            setModalConfig(prev => ({ ...prev, visible: false }));
+                            router.replace('/(auth)/profile_setup');
+                        }
+                    });
+                }
+            } else {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password,
+                });
+
+                if (error) {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                    setModalConfig({
+                        visible: true,
+                        title: t('common.error'),
+                        message: getNetworkErrorMessage(error.message),
+                        type: 'error',
+                        onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
+                    });
+                } else {
+                    const { data: profile, error: profileError } = await supabase
+                        .from('profiles')
+                        .select('id')
+                        .eq('id', data.user.id)
+                        .maybeSingle();
+
+                    if (profileError) {
+                        setModalConfig({
+                            visible: true,
+                            title: t('common.error'),
+                            message: getNetworkErrorMessage(profileError.message),
+                            type: 'error',
+                            onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
+                        });
+                    } else if (profile) {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        router.replace('/(tabs)');
+                    } else {
+                        router.replace('/(auth)/profile_setup');
+                    }
                 }
             }
+        } catch (err: any) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            setModalConfig({
+                visible: true,
+                title: 'Connection Error',
+                message: getNetworkErrorMessage(err.message || 'An unexpected error occurred'),
+                type: 'error',
+                onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
+            });
         }
         setLoading(false);
     };
@@ -153,6 +190,27 @@ export default function LoginScreen() {
                         </LinearGradient>
                     </View>
                     <Text style={styles.brandText}>KADUR</Text>
+
+                    {/* Connection Status */}
+                    <TouchableOpacity
+                        onPress={checkConnection}
+                        style={[
+                            styles.connectionBadge,
+                            connectionStatus === 'connected' && styles.connectionConnected,
+                            connectionStatus === 'error' && styles.connectionError,
+                        ]}
+                    >
+                        <View style={[
+                            styles.connectionDot,
+                            connectionStatus === 'checking' && styles.dotChecking,
+                            connectionStatus === 'connected' && styles.dotConnected,
+                            connectionStatus === 'error' && styles.dotError,
+                        ]} />
+                        <Text style={styles.connectionText}>
+                            {connectionStatus === 'checking' ? 'Checking...' :
+                                connectionStatus === 'connected' ? 'Connected' : 'No Connection - Tap to retry'}
+                        </Text>
+                    </TouchableOpacity>
                 </Animated.View>
 
                 <Animated.View entering={FadeInDown.delay(200).springify()}>
@@ -221,10 +279,17 @@ export default function LoginScreen() {
                             title={isSignUp ? t('auth.signup_button') : t('auth.signin_button')}
                             onPress={handleAuth}
                             loading={loading}
+                            disabled={connectionStatus === 'error'}
                             style={styles.button}
                             size="large"
                             icon={<Ionicons name={isSignUp ? "person-add" : "log-in"} size={20} color="white" />}
                         />
+
+                        {connectionStatus === 'error' && (
+                            <Text style={styles.errorHint}>
+                                Please check your internet connection and tap "No Connection" above to retry
+                            </Text>
+                        )}
 
                         <View style={styles.dividerRow}>
                             <View style={styles.divider} />
@@ -297,6 +362,41 @@ const styles = StyleSheet.create({
         color: 'white',
         fontFamily: FONTS.heading,
         letterSpacing: 4,
+        marginBottom: SPACING.m,
+    },
+    connectionBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: SPACING.m,
+        paddingVertical: SPACING.xs,
+        borderRadius: BORDER_RADIUS.full,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    connectionConnected: {
+        backgroundColor: 'rgba(52, 211, 153, 0.15)',
+    },
+    connectionError: {
+        backgroundColor: 'rgba(248, 113, 113, 0.15)',
+    },
+    connectionDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginRight: SPACING.xs,
+    },
+    dotChecking: {
+        backgroundColor: COLORS.warning,
+    },
+    dotConnected: {
+        backgroundColor: COLORS.success,
+    },
+    dotError: {
+        backgroundColor: COLORS.error,
+    },
+    connectionText: {
+        color: COLORS.textSecondary,
+        fontSize: 12,
+        fontFamily: FONTS.body,
     },
     formCard: {
         paddingHorizontal: SPACING.l,
@@ -344,6 +444,13 @@ const styles = StyleSheet.create({
     },
     button: {
         marginTop: SPACING.s,
+    },
+    errorHint: {
+        color: COLORS.error,
+        fontSize: 12,
+        fontFamily: FONTS.body,
+        textAlign: 'center',
+        marginTop: SPACING.m,
     },
     dividerRow: {
         flexDirection: 'row',
