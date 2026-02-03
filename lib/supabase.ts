@@ -84,10 +84,11 @@ try {
 
 export const supabase = supabaseClient;
 
-// Helper to test connection
+// Helper to test connection - uses a simple auth check that doesn't require tables
 export const testSupabaseConnection = async (): Promise<{ success: boolean; error?: string }> => {
     try {
-        const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
+        // Simple health check - just try to get session (works even without tables)
+        const { error } = await supabase.auth.getSession();
         if (error) {
             return { success: false, error: error.message };
         }
