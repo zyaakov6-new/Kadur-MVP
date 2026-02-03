@@ -1,23 +1,36 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { PremiumButton } from '../../components/ui/PremiumButton';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { FeedbackModal } from '../../components/ui/FeedbackModal';
 
+const COLORS = {
+    primary: '#0A7B5F',
+    primaryDark: '#075E49',
+    primaryLight: '#11A882',
+    accent: '#F5B041',
+    background: '#F4F6F8',
+    surface: '#FFFFFF',
+    surfaceLight: '#F9FAFB',
+    text: '#0B0F12',
+    textSecondary: '#5F6B7A',
+    textMuted: '#9AA4AF',
+    error: '#D14343',
+    border: '#E5E7EB',
+};
+
 export default function ProfileSetupScreen() {
     const { session } = useAuth();
     const router = useRouter();
-    const { t } = useTranslation();
     const { isRTL } = useLanguage();
 
     const [fullName, setFullName] = useState('');
@@ -42,8 +55,8 @@ export default function ProfileSetupScreen() {
         if (!fullName || !city) {
             setModalConfig({
                 visible: true,
-                title: t('common.error'),
-                message: t('profile_setup.error_fill_fields'),
+                title: 'משהו השתבש',
+                message: 'נא למלא את כל שדות החובה.',
                 type: 'error',
                 onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
             });
@@ -63,9 +76,25 @@ export default function ProfileSetupScreen() {
         setLoading(false);
 
         if (error) {
+            const isMissingProfiles = error.message?.includes('profiles')
+                || error.message?.includes('schema cache');
+            if (isMissingProfiles) {
+                setModalConfig({
+                    visible: true,
+                    title: 'המשך משחק',
+                    message: 'מסך הפרופיל יופעל כשמסד הנתונים יהיה מוכן. ממשיכים לאפליקציה.',
+                    type: 'success',
+                    onClose: () => {
+                        setModalConfig(prev => ({ ...prev, visible: false }));
+                        router.replace('/(tabs)');
+                    }
+                });
+                return;
+            }
+
             setModalConfig({
                 visible: true,
-                title: t('common.error'),
+                title: 'משהו השתבש',
                 message: error.message,
                 type: 'error',
                 onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
@@ -73,8 +102,8 @@ export default function ProfileSetupScreen() {
         } else {
             setModalConfig({
                 visible: true,
-                title: t('common.success'),
-                message: t('profile_setup.success_message'),
+                title: 'הכול מוכן',
+                message: 'הפרופיל נשמר בהצלחה.',
                 type: 'success',
                 onClose: () => {
                     setModalConfig(prev => ({ ...prev, visible: false }));
@@ -87,7 +116,7 @@ export default function ProfileSetupScreen() {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={COLORS.backgroundGradient as any}
+                colors={['#F8FAFC', '#EEF2F7', '#F6F8FB']}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -96,17 +125,19 @@ export default function ProfileSetupScreen() {
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                     <Animated.View entering={FadeInDown.delay(200).springify()}>
                         <GlassCard style={styles.formCard}>
-                            <Text style={[styles.title, isRTL && { textAlign: 'right' }]}>{t('profile_setup.title')}</Text>
-                            <Text style={[styles.subtitle, isRTL && { textAlign: 'right' }]}>{t('profile_setup.subtitle')}</Text>
+                            <Text style={[styles.title, isRTL && { textAlign: 'right' }]}>בואו נכיר</Text>
+                            <Text style={[styles.subtitle, isRTL && { textAlign: 'right' }]}>
+                                רגע לפני שמתחילים, ספרו לנו קצת עליכם.
+                            </Text>
 
                             <View style={styles.inputSection}>
-                                <Text style={[styles.label, isRTL && { textAlign: 'right' }]}>{t('profile_setup.label_name')}</Text>
+                                <Text style={[styles.label, isRTL && { textAlign: 'right' }]}>שם מלא</Text>
                                 <View style={[styles.inputWrapper, isRTL && { flexDirection: 'row-reverse' }]}>
-                                    <Ionicons name="person-outline" size={20} color={COLORS.textTertiary} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
+                                    <Ionicons name="person-outline" size={20} color={COLORS.textMuted} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
                                     <TextInput
-                                        style={[styles.input, isRTL && { textAlign: 'right' }]}
-                                        placeholder={t('profile_setup.placeholder_name')}
-                                        placeholderTextColor={COLORS.textTertiary}
+                                        style={[styles.input, isRTL && { textAlign: 'right', writingDirection: 'rtl' }]}
+                                        placeholder="לדוגמה: נועם לוי"
+                                        placeholderTextColor={COLORS.textMuted}
                                         value={fullName}
                                         onChangeText={setFullName}
                                     />
@@ -114,13 +145,13 @@ export default function ProfileSetupScreen() {
                             </View>
 
                             <View style={styles.inputSection}>
-                                <Text style={[styles.label, isRTL && { textAlign: 'right' }]}>{t('profile_setup.label_city')}</Text>
+                                <Text style={[styles.label, isRTL && { textAlign: 'right' }]}>עיר</Text>
                                 <View style={[styles.inputWrapper, isRTL && { flexDirection: 'row-reverse' }]}>
-                                    <Ionicons name="location-outline" size={20} color={COLORS.textTertiary} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
+                                    <Ionicons name="location-outline" size={20} color={COLORS.textMuted} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
                                     <TextInput
-                                        style={[styles.input, isRTL && { textAlign: 'right' }]}
-                                        placeholder={t('profile_setup.placeholder_city')}
-                                        placeholderTextColor={COLORS.textTertiary}
+                                        style={[styles.input, isRTL && { textAlign: 'right', writingDirection: 'rtl' }]}
+                                        placeholder="לדוגמה: תל אביב"
+                                        placeholderTextColor={COLORS.textMuted}
                                         value={city}
                                         onChangeText={setCity}
                                     />
@@ -128,13 +159,13 @@ export default function ProfileSetupScreen() {
                             </View>
 
                             <View style={styles.inputSection}>
-                                <Text style={[styles.label, isRTL && { textAlign: 'right' }]}>{t('profile_setup.label_position')}</Text>
+                                <Text style={[styles.label, isRTL && { textAlign: 'right' }]}>עמדה מועדפת</Text>
                                 <View style={[styles.inputWrapper, isRTL && { flexDirection: 'row-reverse' }]}>
-                                    <Ionicons name="football-outline" size={20} color={COLORS.textTertiary} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
+                                    <Ionicons name="football-outline" size={20} color={COLORS.textMuted} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
                                     <TextInput
-                                        style={[styles.input, isRTL && { textAlign: 'right' }]}
-                                        placeholder={t('profile_setup.placeholder_position')}
-                                        placeholderTextColor={COLORS.textTertiary}
+                                        style={[styles.input, isRTL && { textAlign: 'right', writingDirection: 'rtl' }]}
+                                        placeholder="לדוגמה: חלוץ / שוער"
+                                        placeholderTextColor={COLORS.textMuted}
                                         value={position}
                                         onChangeText={setPosition}
                                     />
@@ -142,7 +173,7 @@ export default function ProfileSetupScreen() {
                             </View>
 
                             <PremiumButton
-                                title={t('profile_setup.button_lets_play')}
+                                title="בואו נשחק"
                                 onPress={handleSave}
                                 loading={loading}
                                 icon={<Ionicons name={isRTL ? "arrow-back" : "arrow-forward"} size={20} color="white" />}
@@ -159,7 +190,7 @@ export default function ProfileSetupScreen() {
                 title={modalConfig.title}
                 message={modalConfig.message}
                 type={modalConfig.type}
-                buttonText={modalConfig.type === 'success' ? t('profile_setup.button_lets_play') : t('common.ok')}
+                buttonText={modalConfig.type === 'success' ? 'בואו נשחק' : 'אישור'}
                 icon={modalConfig.type === 'success' ? "football" : undefined}
             />
         </View>
@@ -169,7 +200,7 @@ export default function ProfileSetupScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.darkBackground,
+        backgroundColor: COLORS.background,
     },
     safeArea: {
         flex: 1,
@@ -182,11 +213,14 @@ const styles = StyleSheet.create({
     formCard: {
         padding: SPACING.xl,
         borderRadius: BORDER_RADIUS.xl,
+        backgroundColor: 'rgba(255,255,255,0.92)',
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
     title: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: 'white',
+        fontSize: 28,
+        fontWeight: '800',
+        color: COLORS.text,
         fontFamily: FONTS.heading,
         marginBottom: 8,
     },
@@ -200,39 +234,38 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.l,
     },
     label: {
-        color: COLORS.turfGreen,
+        color: COLORS.textSecondary,
         fontSize: 12,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
+        fontWeight: '600',
+        letterSpacing: 0.3,
         marginBottom: 8,
         fontFamily: FONTS.body,
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: COLORS.surfaceLight,
         borderRadius: BORDER_RADIUS.m,
         paddingHorizontal: 16,
         height: 56,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: COLORS.border,
     },
     input: {
         flex: 1,
-        color: 'white',
+        color: COLORS.text,
         fontSize: 16,
         fontFamily: FONTS.body,
         height: '100%',
     },
     button: {
-        backgroundColor: COLORS.turfGreen,
+        backgroundColor: COLORS.primary,
         borderRadius: BORDER_RADIUS.m,
         height: 56,
         alignItems: 'center',
         justifyContent: 'center',
         marginTop: SPACING.l,
-        shadowColor: COLORS.turfGreen,
+        shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,

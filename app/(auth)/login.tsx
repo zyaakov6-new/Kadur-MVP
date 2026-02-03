@@ -286,11 +286,21 @@ export default function LoginScreen() {
                 if (error) {
                     showError(error.message);
                 } else {
-                    const { data: profile } = await supabase
+                    const { data: profile, error: profileError } = await supabase
                         .from('profiles')
                         .select('id')
                         .eq('id', data.user.id)
                         .maybeSingle();
+
+                    if (profileError) {
+                        const isMissingProfiles = profileError.message?.includes('profiles')
+                            || profileError.message?.includes('schema cache');
+                        if (isMissingProfiles) {
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            router.replace('/(tabs)');
+                            return;
+                        }
+                    }
 
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     router.replace(profile ? '/(tabs)' : '/(auth)/profile_setup');
