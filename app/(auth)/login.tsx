@@ -40,17 +40,17 @@ const { width, height } = Dimensions.get('window');
 
 const COLORS = {
     primary: '#10B981',
-    primaryDark: '#059669',
+    primaryDark: '#0E9F6E',
     primaryLight: '#34D399',
     accent: '#F59E0B',
-    background: '#030712',
-    surface: '#111827',
-    surfaceLight: '#1F2937',
+    background: '#050B0A',
+    surface: '#0E1513',
+    surfaceLight: '#15201C',
     text: '#FFFFFF',
-    textSecondary: 'rgba(255,255,255,0.6)',
-    textMuted: 'rgba(255,255,255,0.3)',
+    textSecondary: 'rgba(255,255,255,0.68)',
+    textMuted: 'rgba(255,255,255,0.38)',
     error: '#EF4444',
-    border: 'rgba(255,255,255,0.1)',
+    border: 'rgba(255,255,255,0.12)',
 };
 
 export default function LoginScreen() {
@@ -141,7 +141,9 @@ export default function LoginScreen() {
     };
 
     const handleAuth = async () => {
-        if (!email || !password) {
+        const normalizedEmail = email.trim().toLowerCase();
+
+        if (!normalizedEmail || !password) {
             showError(t('create_game.error_fill_fields'));
             return;
         }
@@ -161,7 +163,7 @@ export default function LoginScreen() {
 
         try {
             if (isSignUp) {
-                const { error } = await supabase.auth.signUp({ email, password });
+                const { data, error } = await supabase.auth.signUp({ email: normalizedEmail, password });
                 if (error) {
                     showError(error.message);
                 } else {
@@ -169,7 +171,7 @@ export default function LoginScreen() {
                     router.replace('/(auth)/profile_setup');
                 }
             } else {
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
                 if (error) {
                     showError(error.message);
                 } else {
@@ -203,6 +205,7 @@ export default function LoginScreen() {
 
     const InputField = ({
         icon,
+        label,
         placeholder,
         value,
         onChangeText,
@@ -211,49 +214,60 @@ export default function LoginScreen() {
         autoCapitalize = 'none',
         fieldName,
         onSubmitEditing,
-        ref,
+        textContentType,
+        autoComplete,
+        inputRef,
+        helper,
     }: any) => {
         const isFocused = focusedField === fieldName;
 
         return (
-            <View style={[
-                styles.inputContainer,
-                isFocused && styles.inputContainerFocused,
-            ]}>
-                <View style={styles.inputIconContainer}>
-                    <Ionicons
-                        name={icon}
-                        size={20}
-                        color={isFocused ? COLORS.primary : COLORS.textMuted}
-                    />
-                </View>
-                <TextInput
-                    ref={ref}
-                    style={[styles.input, isRTL && { textAlign: 'right' }]}
-                    placeholder={placeholder}
-                    placeholderTextColor={COLORS.textMuted}
-                    value={value}
-                    onChangeText={onChangeText}
-                    secureTextEntry={secureTextEntry && !showPassword}
-                    keyboardType={keyboardType}
-                    autoCapitalize={autoCapitalize}
-                    onFocus={() => setFocusedField(fieldName)}
-                    onBlur={() => setFocusedField(null)}
-                    selectionColor={COLORS.primary}
-                    onSubmitEditing={onSubmitEditing}
-                    returnKeyType={onSubmitEditing ? 'next' : 'done'}
-                />
-                {secureTextEntry && (
-                    <TouchableOpacity
-                        style={styles.eyeButton}
-                        onPress={() => setShowPassword(!showPassword)}
-                    >
+            <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, isRTL && { textAlign: 'right' }]}>{label}</Text>
+                <View style={[
+                    styles.inputContainer,
+                    isFocused && styles.inputContainerFocused,
+                ]}>
+                    <View style={styles.inputIconContainer}>
                         <Ionicons
-                            name={showPassword ? 'eye-off' : 'eye'}
+                            name={icon}
                             size={20}
-                            color={COLORS.textMuted}
+                            color={isFocused ? COLORS.primary : COLORS.textMuted}
                         />
-                    </TouchableOpacity>
+                    </View>
+                    <TextInput
+                        ref={inputRef}
+                        style={[styles.input, isRTL && { textAlign: 'right' }]}
+                        placeholder={placeholder}
+                        placeholderTextColor={COLORS.textMuted}
+                        value={value}
+                        onChangeText={onChangeText}
+                        secureTextEntry={secureTextEntry && !showPassword}
+                        keyboardType={keyboardType}
+                        autoCapitalize={autoCapitalize}
+                        onFocus={() => setFocusedField(fieldName)}
+                        onBlur={() => setFocusedField(null)}
+                        selectionColor={COLORS.primary}
+                        onSubmitEditing={onSubmitEditing}
+                        returnKeyType={onSubmitEditing ? 'next' : 'done'}
+                        textContentType={textContentType}
+                        autoComplete={autoComplete}
+                    />
+                    {secureTextEntry && (
+                        <TouchableOpacity
+                            style={styles.eyeButton}
+                            onPress={() => setShowPassword(!showPassword)}
+                        >
+                            <Ionicons
+                                name={showPassword ? 'eye-off' : 'eye'}
+                                size={20}
+                                color={COLORS.textMuted}
+                            />
+                        </TouchableOpacity>
+                    )}
+                </View>
+                {!!helper && (
+                    <Text style={[styles.inputHelper, isRTL && { textAlign: 'right' }]}>{helper}</Text>
                 )}
             </View>
         );
@@ -263,7 +277,7 @@ export default function LoginScreen() {
         <View style={styles.container}>
             {/* Background */}
             <LinearGradient
-                colors={['#030712', '#0a1628', '#071515']}
+                colors={['#050B0A', '#0B1713', '#0A1411']}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -272,29 +286,36 @@ export default function LoginScreen() {
             {/* Decorative elements */}
             <View style={styles.decorativeCircle1} />
             <View style={styles.decorativeCircle2} />
+            <View style={styles.ambientGlow} />
 
             {/* Language Switcher */}
             <SafeAreaView style={styles.topBar} edges={['top']}>
-                <TouchableOpacity
-                    onPress={checkConnection}
-                    style={[
-                        styles.connectionBadge,
-                        connectionStatus === 'connected' && styles.connectionOk,
-                        connectionStatus === 'error' && styles.connectionError,
-                    ]}
-                >
-                    <View style={[
-                        styles.connectionDot,
-                        connectionStatus === 'checking' && { backgroundColor: COLORS.accent },
-                        connectionStatus === 'connected' && { backgroundColor: COLORS.primary },
-                        connectionStatus === 'error' && { backgroundColor: COLORS.error },
-                    ]} />
-                    <Text style={styles.connectionText}>
-                        {connectionStatus === 'checking' ? 'Connecting...' :
-                            connectionStatus === 'connected' ? 'Online' : 'Offline'}
-                    </Text>
-                </TouchableOpacity>
-                <LanguageSwitcher />
+                <View style={styles.brandPill}>
+                    <Ionicons name="football" size={14} color={COLORS.primaryLight} />
+                    <Text style={styles.brandPillText}>KADUR</Text>
+                </View>
+                <View style={styles.topBarRight}>
+                    <TouchableOpacity
+                        onPress={checkConnection}
+                        style={[
+                            styles.connectionBadge,
+                            connectionStatus === 'connected' && styles.connectionOk,
+                            connectionStatus === 'error' && styles.connectionError,
+                        ]}
+                    >
+                        <View style={[
+                            styles.connectionDot,
+                            connectionStatus === 'checking' && { backgroundColor: COLORS.accent },
+                            connectionStatus === 'connected' && { backgroundColor: COLORS.primary },
+                            connectionStatus === 'error' && { backgroundColor: COLORS.error },
+                        ]} />
+                        <Text style={styles.connectionText}>
+                            {connectionStatus === 'checking' ? 'Connecting...' :
+                                connectionStatus === 'connected' ? 'Online' : 'Offline'}
+                        </Text>
+                    </TouchableOpacity>
+                    <LanguageSwitcher />
+                </View>
             </SafeAreaView>
 
             <KeyboardAvoidingView
@@ -325,9 +346,14 @@ export default function LoginScreen() {
                                 </LinearGradient>
                             </Animated.View>
 
-                            <Text style={styles.logoText}>KADUR</Text>
-                            <Text style={styles.tagline}>
-                                {isSignUp ? 'Join the game' : 'Welcome back, player'}
+                            <Text style={styles.heroEyebrow}>KADUR</Text>
+                            <Text style={styles.heroTitle}>
+                                {isSignUp ? 'Create your account' : 'Welcome back'}
+                            </Text>
+                            <Text style={styles.heroSubtitle}>
+                                {isSignUp
+                                    ? 'Start organizing pickup football in minutes.'
+                                    : 'Sign in to keep your team moving.'}
                             </Text>
                         </Animated.View>
                     )}
@@ -337,58 +363,78 @@ export default function LoginScreen() {
                         entering={FadeInUp.delay(300).springify()}
                         style={styles.formCard}
                     >
-                        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+                        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
                         <LinearGradient
-                            colors={['rgba(17,24,39,0.8)', 'rgba(17,24,39,0.95)']}
+                            colors={['rgba(17,24,39,0.55)', 'rgba(8,12,11,0.95)']}
                             style={StyleSheet.absoluteFill}
                         />
 
-                        {/* Form Header */}
-                        <View style={styles.formHeader}>
-                            <Text style={styles.formTitle}>
-                                {isSignUp ? 'Create Account' : 'Sign In'}
-                            </Text>
-                            <Text style={styles.formSubtitle}>
-                                {isSignUp
-                                    ? 'Start playing pickup games today'
-                                    : 'Continue your football journey'}
-                            </Text>
+                        {/* Segmented Control */}
+                        <View style={styles.segmented}>
+                            <TouchableOpacity
+                                style={[styles.segmentButton, !isSignUp && styles.segmentButtonActive]}
+                                onPress={() => !isSignUp || toggleMode()}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={[styles.segmentText, !isSignUp && styles.segmentTextActive]}>
+                                    Sign In
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.segmentButton, isSignUp && styles.segmentButtonActive]}
+                                onPress={() => isSignUp || toggleMode()}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={[styles.segmentText, isSignUp && styles.segmentTextActive]}>
+                                    Create Account
+                                </Text>
+                            </TouchableOpacity>
                         </View>
 
                         {/* Input Fields */}
                         <View style={styles.inputsContainer}>
                             <InputField
                                 icon="mail-outline"
+                                label="Email"
                                 placeholder="Email address"
                                 value={email}
                                 onChangeText={setEmail}
                                 keyboardType="email-address"
                                 fieldName="email"
                                 onSubmitEditing={() => passwordRef.current?.focus()}
+                                textContentType="emailAddress"
+                                autoComplete="email"
                             />
 
                             <InputField
-                                ref={passwordRef}
+                                inputRef={passwordRef}
                                 icon="lock-closed-outline"
+                                label="Password"
                                 placeholder="Password"
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry
                                 fieldName="password"
                                 onSubmitEditing={() => isSignUp ? confirmPasswordRef.current?.focus() : handleAuth()}
+                                textContentType={isSignUp ? 'newPassword' : 'password'}
+                                autoComplete={isSignUp ? 'new-password' : 'password'}
+                                helper={isSignUp ? 'Use at least 6 characters.' : undefined}
                             />
 
                             {isSignUp && (
                                 <Animated.View entering={FadeInDown.springify()}>
                                     <InputField
-                                        ref={confirmPasswordRef}
+                                        inputRef={confirmPasswordRef}
                                         icon="shield-checkmark-outline"
+                                        label="Confirm password"
                                         placeholder="Confirm password"
                                         value={confirmPassword}
                                         onChangeText={setConfirmPassword}
                                         secureTextEntry
                                         fieldName="confirmPassword"
                                         onSubmitEditing={handleAuth}
+                                        textContentType="newPassword"
+                                        autoComplete="new-password"
                                     />
                                 </Animated.View>
                             )}
@@ -403,7 +449,7 @@ export default function LoginScreen() {
                         >
                             <LinearGradient
                                 colors={loading || connectionStatus === 'error'
-                                    ? ['#374151', '#1F2937']
+                                    ? ['#2A3531', '#1A2420']
                                     : [COLORS.primaryLight, COLORS.primary]}
                                 style={styles.submitButtonGradient}
                                 start={{ x: 0, y: 0 }}
@@ -425,7 +471,7 @@ export default function LoginScreen() {
                                             color="white"
                                         />
                                         <Text style={styles.submitButtonText}>
-                                            {isSignUp ? 'Create Account' : 'Sign In'}
+                                            {isSignUp ? 'Create Account' : 'Continue'}
                                         </Text>
                                         <Ionicons name="arrow-forward" size={18} color="white" />
                                     </>
@@ -433,26 +479,14 @@ export default function LoginScreen() {
                             </LinearGradient>
                         </TouchableOpacity>
 
-                        {/* Divider */}
-                        <View style={styles.divider}>
-                            <View style={styles.dividerLine} />
-                            <Text style={styles.dividerText}>or</Text>
-                            <View style={styles.dividerLine} />
-                        </View>
-
-                        {/* Toggle Mode */}
-                        <TouchableOpacity
-                            style={styles.toggleButton}
-                            onPress={toggleMode}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.toggleText}>
-                                {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-                                <Text style={styles.toggleTextHighlight}>
-                                    {isSignUp ? 'Sign In' : 'Sign Up'}
-                                </Text>
+                        {/* Subtle Helper */}
+                        <View style={styles.helperRow}>
+                            <Text style={styles.helperText}>
+                                {isSignUp
+                                    ? 'You can change your details later in settings.'
+                                    : 'We never share your email with anyone.'}
                             </Text>
-                        </TouchableOpacity>
+                        </View>
                     </Animated.View>
 
                     {/* Footer */}
@@ -490,9 +524,9 @@ const styles = StyleSheet.create({
         height: 300,
         borderRadius: 150,
         backgroundColor: COLORS.primary,
-        opacity: 0.03,
-        top: -100,
-        right: -100,
+        opacity: 0.05,
+        top: -120,
+        right: -120,
     },
     decorativeCircle2: {
         position: 'absolute',
@@ -500,9 +534,19 @@ const styles = StyleSheet.create({
         height: 200,
         borderRadius: 100,
         backgroundColor: COLORS.accent,
-        opacity: 0.03,
-        bottom: 100,
-        left: -80,
+        opacity: 0.04,
+        bottom: 80,
+        left: -70,
+    },
+    ambientGlow: {
+        position: 'absolute',
+        width: 420,
+        height: 420,
+        borderRadius: 210,
+        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+        top: height * 0.18,
+        left: -140,
+        opacity: 0.5,
     },
     topBar: {
         flexDirection: 'row',
@@ -511,12 +555,34 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 8,
     },
+    topBarRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    brandPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    brandPillText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 2,
+    },
     connectionBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
+        paddingHorizontal: 10,
         paddingVertical: 6,
-        borderRadius: 20,
+        borderRadius: 18,
         backgroundColor: 'rgba(255,255,255,0.05)',
     },
     connectionOk: {
@@ -533,8 +599,8 @@ const styles = StyleSheet.create({
     },
     connectionText: {
         color: COLORS.textSecondary,
-        fontSize: 12,
-        fontWeight: '500',
+        fontSize: 11,
+        fontWeight: '600',
     },
     content: {
         flex: 1,
@@ -547,15 +613,15 @@ const styles = StyleSheet.create({
     logoSection: {
         alignItems: 'center',
         paddingTop: 40,
-        paddingBottom: 32,
+        paddingBottom: 28,
     },
     ballContainer: {
-        marginBottom: 20,
+        marginBottom: 16,
     },
     ball: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+        width: 72,
+        height: 72,
+        borderRadius: 36,
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: COLORS.primary,
@@ -588,54 +654,88 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.2)',
         left: 38,
     },
-    logoText: {
-        fontSize: 36,
+    heroEyebrow: {
+        fontSize: 12,
+        letterSpacing: 4,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+        marginBottom: 6,
+    },
+    heroTitle: {
+        fontSize: 28,
         fontWeight: '800',
         color: 'white',
-        letterSpacing: 6,
-        marginBottom: 8,
+        textAlign: 'center',
     },
-    tagline: {
-        fontSize: 16,
+    heroSubtitle: {
+        fontSize: 15,
         color: COLORS.textSecondary,
-        fontWeight: '400',
+        textAlign: 'center',
+        marginTop: 8,
+        maxWidth: 280,
+        lineHeight: 20,
     },
     formCard: {
-        borderRadius: 24,
+        borderRadius: 26,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.08)',
+        borderColor: 'rgba(255,255,255,0.12)',
         padding: 24,
     },
-    formHeader: {
-        marginBottom: 24,
+    segmented: {
+        flexDirection: 'row',
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 16,
+        padding: 4,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
-    formTitle: {
-        fontSize: 26,
-        fontWeight: '700',
-        color: 'white',
-        marginBottom: 8,
+    segmentButton: {
+        flex: 1,
+        paddingVertical: 10,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    formSubtitle: {
-        fontSize: 14,
+    segmentButtonActive: {
+        backgroundColor: 'rgba(255,255,255,0.14)',
+    },
+    segmentText: {
         color: COLORS.textSecondary,
+        fontSize: 12,
+        fontWeight: '600',
+        letterSpacing: 0.5,
+    },
+    segmentTextActive: {
+        color: 'white',
+        fontWeight: '700',
     },
     inputsContainer: {
         gap: 16,
-        marginBottom: 24,
+        marginBottom: 20,
+    },
+    inputGroup: {
+        gap: 8,
+    },
+    inputLabel: {
+        color: COLORS.textSecondary,
+        fontSize: 12,
+        fontWeight: '600',
+        letterSpacing: 0.2,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         height: 56,
         borderRadius: 16,
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        borderWidth: 1.5,
-        borderColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     inputContainerFocused: {
         borderColor: COLORS.primary,
-        backgroundColor: 'rgba(16,185,129,0.05)',
+        backgroundColor: 'rgba(16,185,129,0.06)',
     },
     inputIconContainer: {
         width: 50,
@@ -647,6 +747,10 @@ const styles = StyleSheet.create({
         height: '100%',
         color: 'white',
         fontSize: 15,
+    },
+    inputHelper: {
+        color: COLORS.textMuted,
+        fontSize: 11,
     },
     eyeButton: {
         width: 50,
@@ -682,39 +786,21 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: '700',
+        letterSpacing: 0.2,
     },
-    divider: {
-        flexDirection: 'row',
+    helperRow: {
+        marginTop: 14,
         alignItems: 'center',
-        marginVertical: 24,
     },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-    },
-    dividerText: {
+    helperText: {
         color: COLORS.textMuted,
         fontSize: 12,
-        marginHorizontal: 16,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    toggleButton: {
-        alignItems: 'center',
-        paddingVertical: 8,
-    },
-    toggleText: {
-        color: COLORS.textSecondary,
-        fontSize: 14,
-    },
-    toggleTextHighlight: {
-        color: COLORS.primary,
-        fontWeight: '600',
+        textAlign: 'center',
+        lineHeight: 16,
     },
     footer: {
         alignItems: 'center',
-        paddingTop: 24,
+        paddingTop: 20,
     },
     footerText: {
         color: COLORS.textMuted,
