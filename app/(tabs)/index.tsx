@@ -9,7 +9,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { PremiumButton } from '../../components/ui/PremiumButton';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -88,6 +87,35 @@ export default function HomeScreen() {
     return new Date(dateString).toLocaleTimeString(isRTL ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const QuickAction = ({
+    icon,
+    label,
+    onPress,
+    accent = COLORS.turfGreen,
+  }: {
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    onPress: () => void;
+    accent?: string;
+  }) => (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={[styles.quickAction, { borderColor: `${accent}22` }]}
+    >
+      <LinearGradient
+        colors={[`${accent}1A`, 'rgba(255,255,255,0.9)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[styles.quickIcon, { backgroundColor: `${accent}1F` }]}>
+        <Ionicons name={icon} size={18} color={accent} />
+      </View>
+      <Text style={styles.quickLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+
   const renderGameCard = ({ item, index }: { item: Game; index: number }) => {
     const spotsLeft = item.max_players - (item.current_players || 0);
     const isFilling = spotsLeft <= 3 && spotsLeft > 0;
@@ -102,68 +130,60 @@ export default function HomeScreen() {
           activeOpacity={0.9}
         >
           <GlassCard style={styles.gameCard} variant="elevated">
-            {/* Header with title and format */}
-            <View style={[styles.gameCardHeader, isRTL && { flexDirection: 'row-reverse' }]}>
-              <View style={[styles.gameInfoLeft, isRTL && { alignItems: 'flex-end' }]}>
-                <Text style={[styles.gameTitle, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <View style={[styles.dateTimeRow, isRTL && { flexDirection: 'row-reverse' }]}>
-                  <View style={[styles.dateTimeBadge, isRTL && { flexDirection: 'row-reverse' }]}>
-                    <Ionicons name="calendar" size={12} color={COLORS.turfGreenLight} />
-                    <Text style={styles.dateTimeText}>{formatDate(item.start_time)}</Text>
-                  </View>
-                  <View style={[styles.dateTimeBadge, isRTL && { flexDirection: 'row-reverse' }]}>
-                    <Ionicons name="time" size={12} color={COLORS.turfGreenLight} />
-                    <Text style={styles.dateTimeText}>{formatTime(item.start_time)}</Text>
+            <View style={[styles.gameCardRow, isRTL && { flexDirection: 'row-reverse' }]}>
+              <View style={[styles.timePill, isRTL && { alignItems: 'flex-end' }]}>
+                <Text style={styles.timeDate}>{formatDate(item.start_time)}</Text>
+                <Text style={styles.timeHour}>{formatTime(item.start_time)}</Text>
+              </View>
+
+              <View style={[styles.gameMain, isRTL && { alignItems: 'flex-end' }]}>
+                <View style={[styles.gameHeaderRow, isRTL && { flexDirection: 'row-reverse' }]}>
+                  <Text style={[styles.gameTitle, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <View style={styles.formatBadge}>
+                    <Text style={styles.formatText}>{item.format}</Text>
                   </View>
                 </View>
-              </View>
-              <View style={styles.formatBadge}>
-                <Text style={styles.formatText}>{item.format}</Text>
+
+                {item.description && (
+                  <Text style={[styles.gameDescription, isRTL && { textAlign: 'right' }]} numberOfLines={2}>
+                    {item.description}
+                  </Text>
+                )}
+
+                <View style={[styles.metaRow, isRTL && { flexDirection: 'row-reverse' }]}>
+                  <View style={[styles.spotsBadge, isFilling && styles.spotsBadgeFilling]}>
+                    <Ionicons
+                      name="people"
+                      size={14}
+                      color={isFilling ? COLORS.accentOrange : COLORS.turfGreenLight}
+                    />
+                    <Text style={[styles.spotsText, isFilling && styles.spotsTextFilling]}>
+                      {item.current_players || 0}/{item.max_players}
+                    </Text>
+                  </View>
+                  {isFilling && (
+                    <Text style={styles.fillingText}>{t('home.filling_fast')}</Text>
+                  )}
+                </View>
+
+                {item.address && (
+                  <View style={[styles.locationRow, isRTL && { flexDirection: 'row-reverse' }]}>
+                    <Ionicons name="location" size={12} color={COLORS.textTertiary} />
+                    <Text style={styles.locationText} numberOfLines={1}>
+                      {item.address.split(',')[0]}
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
 
-            {/* Description */}
-            {item.description && (
-              <Text style={[styles.gameDescription, isRTL && { textAlign: 'right' }]} numberOfLines={2}>
-                {item.description}
-              </Text>
-            )}
-
-            {/* Divider */}
-            <View style={styles.divider} />
-
-            {/* Footer */}
-            <View style={[styles.gameFooter, isRTL && { flexDirection: 'row-reverse' }]}>
-              <View style={[styles.spotsContainer, isRTL && { flexDirection: 'row-reverse' }]}>
-                <View style={[styles.spotsBadge, isFilling && styles.spotsBadgeFilling]}>
-                  <Ionicons
-                    name="people"
-                    size={14}
-                    color={isFilling ? COLORS.accentOrange : COLORS.turfGreenLight}
-                  />
-                  <Text style={[styles.spotsText, isFilling && styles.spotsTextFilling]}>
-                    {item.current_players || 0}/{item.max_players}
-                  </Text>
-                </View>
-                {isFilling && (
-                  <Text style={styles.fillingText}>{t('home.filling_fast')}</Text>
-                )}
-              </View>
-
-              {item.address && (
-                <View style={[styles.locationContainer, isRTL && { flexDirection: 'row-reverse' }]}>
-                  <Ionicons name="location" size={12} color={COLORS.textTertiary} />
-                  <Text style={styles.locationText} numberOfLines={1}>
-                    {item.address.split(',')[0]}
-                  </Text>
-                </View>
-              )}
-
+            <View style={styles.cardCtaRow}>
+              <Text style={styles.cardCtaText}>{t('home.view_game') || 'צפו בפרטים'}</Text>
               <Ionicons
                 name={isRTL ? "chevron-back" : "chevron-forward"}
-                size={18}
+                size={16}
                 color={COLORS.textTertiary}
               />
             </View>
@@ -186,7 +206,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={[styles.header, isRTL && { flexDirection: 'row-reverse' }]}>
           <View style={[styles.headerLeft, isRTL && { alignItems: 'flex-end' }]}>
-            <Text style={[styles.brandName, isRTL && { textAlign: 'right' }]}>KADUR</Text>
+            <Text style={[styles.brandName, isRTL && { textAlign: 'right' }]}>כדור</Text>
             <Text style={[styles.subtitle, isRTL && { textAlign: 'right' }]}>{t('home.welcome')}</Text>
           </View>
           {games.length > 0 && (
@@ -207,6 +227,20 @@ export default function HomeScreen() {
               <Ionicons name="add" size={26} color="white" />
             </TouchableOpacity>
           )}
+        </View>
+
+        <View style={styles.quickRow}>
+          <QuickAction
+            icon="add-circle-outline"
+            label={t('home.create_first_game')}
+            onPress={() => router.push('/create-game')}
+          />
+          <QuickAction
+            icon="compass-outline"
+            label={t('tabs.explore')}
+            onPress={() => router.push('/(tabs)/explore')}
+            accent={COLORS.accentOrange}
+          />
         </View>
 
         {/* Section Header */}
@@ -273,17 +307,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.l,
     paddingTop: SPACING.m,
-    paddingBottom: SPACING.s,
+    paddingBottom: SPACING.xs,
   },
   headerLeft: {
     flex: 1,
   },
   brandName: {
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: '800',
     color: COLORS.textPrimary,
     fontFamily: FONTS.heading,
-    letterSpacing: 2,
+    letterSpacing: 1,
   },
   subtitle: {
     fontSize: 14,
@@ -299,6 +333,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     ...SHADOWS.button,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.l,
+    gap: SPACING.m,
+    marginBottom: SPACING.m,
+  },
+  quickAction: {
+    flex: 1,
+    height: 64,
+    borderRadius: BORDER_RADIUS.l,
+    paddingHorizontal: SPACING.m,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderWidth: 1,
+  },
+  quickIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLabel: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontFamily: FONTS.body,
+    fontWeight: '600',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -324,7 +388,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: 'white',
+    color: COLORS.textPrimary,
     fontFamily: FONTS.heading,
   },
   gamesCount: {
@@ -341,43 +405,46 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.m,
     padding: SPACING.m,
   },
-  gameCardHeader: {
+  gameCardRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: SPACING.s,
+    gap: SPACING.m,
   },
-  gameInfoLeft: {
+  timePill: {
+    width: 88,
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.s,
+    borderRadius: BORDER_RADIUS.l,
+    backgroundColor: 'rgba(10, 123, 95, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeDate: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.body,
+    textAlign: 'center',
+  },
+  timeHour: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginTop: 4,
+  },
+  gameMain: {
     flex: 1,
-    marginRight: SPACING.m,
+    gap: 8,
+  },
+  gameHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.s,
   },
   gameTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.textPrimary,
     fontFamily: FONTS.heading,
-    marginBottom: SPACING.xs,
-  },
-  dateTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-    marginTop: SPACING.xs,
-  },
-  dateTimeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.successLight,
-    paddingHorizontal: SPACING.s,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.xs,
-  },
-  dateTimeText: {
-    fontSize: 11,
-    color: COLORS.turfGreenLight,
-    fontWeight: '600',
-    fontFamily: FONTS.body,
   },
   formatBadge: {
     backgroundColor: 'rgba(0, 168, 107, 0.12)',
@@ -400,18 +467,8 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontFamily: FONTS.body,
     lineHeight: 20,
-    marginBottom: SPACING.s,
   },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    marginVertical: SPACING.s,
-  },
-  gameFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  spotsContainer: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.s,
@@ -443,18 +500,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: FONTS.body,
   },
-  locationContainer: {
-    flex: 1,
+  locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginLeft: SPACING.m,
-    marginRight: SPACING.s,
   },
   locationText: {
     color: COLORS.textTertiary,
     fontSize: 12,
     fontFamily: FONTS.body,
     flex: 1,
+  },
+  cardCtaRow: {
+    marginTop: SPACING.m,
+    paddingTop: SPACING.s,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.cardGlassBorder,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+  },
+  cardCtaText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontFamily: FONTS.body,
+    fontWeight: '600',
   },
 });
