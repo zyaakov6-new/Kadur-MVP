@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -13,12 +12,15 @@ import { LanguageSwitcher } from '../../components/ui/LanguageSwitcher';
 import { FeedbackModal } from '../../components/ui/FeedbackModal';
 import { PremiumButton } from '../../components/ui/PremiumButton';
 import { LoadingState } from '../../components/ui/LoadingState';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [isSignUp, setIsSignUp] = useState(false);
+    const [focusedInput, setFocusedInput] = useState<string | null>(null);
     const [modalConfig, setModalConfig] = useState<{
         visible: boolean;
         title: string;
@@ -38,6 +40,7 @@ export default function LoginScreen() {
 
     const handleAuth = async () => {
         if (!email || !password) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             setModalConfig({
                 visible: true,
                 title: t('common.error'),
@@ -49,6 +52,7 @@ export default function LoginScreen() {
         }
 
         setLoading(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         if (isSignUp) {
             const { error } = await supabase.auth.signUp({
@@ -57,6 +61,7 @@ export default function LoginScreen() {
             });
 
             if (error) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                 setModalConfig({
                     visible: true,
                     title: t('common.error'),
@@ -65,6 +70,7 @@ export default function LoginScreen() {
                     onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
                 });
             } else {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 setModalConfig({
                     visible: true,
                     title: t('common.success'),
@@ -83,6 +89,7 @@ export default function LoginScreen() {
             });
 
             if (error) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                 setModalConfig({
                     visible: true,
                     title: t('common.error'),
@@ -91,12 +98,11 @@ export default function LoginScreen() {
                     onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
                 });
             } else {
-                // Check if profile exists
                 const { data: profile, error: profileError } = await supabase
                     .from('profiles')
                     .select('id')
                     .eq('id', data.user.id)
-                    .maybeSingle(); // maybeSingle handles 0 rows without PGRST116 error
+                    .maybeSingle();
 
                 if (profileError) {
                     setModalConfig({
@@ -107,6 +113,7 @@ export default function LoginScreen() {
                         onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
                     });
                 } else if (profile) {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     router.replace('/(tabs)');
                 } else {
                     router.replace('/(auth)/profile_setup');
@@ -123,7 +130,7 @@ export default function LoginScreen() {
                 colors={COLORS.backgroundGradient as any}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                end={{ x: 0.5, y: 1 }}
             />
 
             {/* Language Switcher */}
@@ -135,50 +142,110 @@ export default function LoginScreen() {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.content}
             >
-                <GlassCard style={styles.formCard}>
-                    <Text style={styles.title}>{isSignUp ? t('auth.signup_title') : t('auth.welcome_back_title')}</Text>
-                    <Text style={styles.subtitle}>
-                        {isSignUp ? t('auth.join_league') : t('auth.welcome_back')}
-                    </Text>
-
-                    <View style={[styles.inputWrapper, isRTL && { flexDirection: 'row-reverse' }]}>
-                        <Ionicons name="mail-outline" size={20} color={COLORS.textTertiary} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
-                        <TextInput
-                            style={[styles.input, isRTL && { textAlign: 'right' }]}
-                            placeholder={t('auth.email')}
-                            placeholderTextColor={COLORS.textTertiary}
-                            value={email}
-                            onChangeText={setEmail}
-                            autoCapitalize="none"
-                            keyboardType="email-address"
-                        />
+                {/* Brand */}
+                <Animated.View entering={FadeIn.delay(100)} style={styles.brandContainer}>
+                    <View style={styles.logoContainer}>
+                        <LinearGradient
+                            colors={[COLORS.turfGreenLight, COLORS.turfGreen]}
+                            style={styles.logoGradient}
+                        >
+                            <Ionicons name="football" size={36} color="white" />
+                        </LinearGradient>
                     </View>
+                    <Text style={styles.brandText}>KADUR</Text>
+                </Animated.View>
 
-                    <View style={[styles.inputWrapper, isRTL && { flexDirection: 'row-reverse' }]}>
-                        <Ionicons name="lock-closed-outline" size={20} color={COLORS.textTertiary} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
-                        <TextInput
-                            style={[styles.input, isRTL && { textAlign: 'right' }]}
-                            placeholder={t('auth.password')}
-                            placeholderTextColor={COLORS.textTertiary}
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry
-                        />
-                    </View>
-
-                    <PremiumButton
-                        title={isSignUp ? t('auth.signup_button') : t('auth.signin_button')}
-                        onPress={handleAuth}
-                        loading={loading}
-                        style={styles.button}
-                    />
-
-                    <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
-                        <Text style={styles.linkText}>
-                            {isSignUp ? t('auth.has_account') : t('auth.no_account')}
+                <Animated.View entering={FadeInDown.delay(200).springify()}>
+                    <GlassCard style={styles.formCard} variant="elevated">
+                        <Text style={[styles.title, isRTL && { textAlign: 'right' }]}>
+                            {isSignUp ? t('auth.signup_title') : t('auth.welcome_back_title')}
                         </Text>
-                    </TouchableOpacity>
-                </GlassCard>
+                        <Text style={[styles.subtitle, isRTL && { textAlign: 'right' }]}>
+                            {isSignUp ? t('auth.join_league') : t('auth.welcome_back')}
+                        </Text>
+
+                        {/* Email Input */}
+                        <View style={[
+                            styles.inputWrapper,
+                            isRTL && { flexDirection: 'row-reverse' },
+                            focusedInput === 'email' && styles.inputWrapperFocused
+                        ]}>
+                            <View style={styles.inputIconContainer}>
+                                <Ionicons
+                                    name="mail-outline"
+                                    size={18}
+                                    color={focusedInput === 'email' ? COLORS.turfGreenLight : COLORS.textTertiary}
+                                />
+                            </View>
+                            <TextInput
+                                style={[styles.input, isRTL && { textAlign: 'right' }]}
+                                placeholder={t('auth.email')}
+                                placeholderTextColor={COLORS.textTertiary}
+                                value={email}
+                                onChangeText={setEmail}
+                                autoCapitalize="none"
+                                keyboardType="email-address"
+                                onFocus={() => setFocusedInput('email')}
+                                onBlur={() => setFocusedInput(null)}
+                                selectionColor={COLORS.turfGreenLight}
+                            />
+                        </View>
+
+                        {/* Password Input */}
+                        <View style={[
+                            styles.inputWrapper,
+                            isRTL && { flexDirection: 'row-reverse' },
+                            focusedInput === 'password' && styles.inputWrapperFocused
+                        ]}>
+                            <View style={styles.inputIconContainer}>
+                                <Ionicons
+                                    name="lock-closed-outline"
+                                    size={18}
+                                    color={focusedInput === 'password' ? COLORS.turfGreenLight : COLORS.textTertiary}
+                                />
+                            </View>
+                            <TextInput
+                                style={[styles.input, isRTL && { textAlign: 'right' }]}
+                                placeholder={t('auth.password')}
+                                placeholderTextColor={COLORS.textTertiary}
+                                value={password}
+                                onChangeText={setPassword}
+                                secureTextEntry
+                                onFocus={() => setFocusedInput('password')}
+                                onBlur={() => setFocusedInput(null)}
+                                selectionColor={COLORS.turfGreenLight}
+                            />
+                        </View>
+
+                        <PremiumButton
+                            title={isSignUp ? t('auth.signup_button') : t('auth.signin_button')}
+                            onPress={handleAuth}
+                            loading={loading}
+                            style={styles.button}
+                            size="large"
+                            icon={<Ionicons name={isSignUp ? "person-add" : "log-in"} size={20} color="white" />}
+                        />
+
+                        <View style={styles.dividerRow}>
+                            <View style={styles.divider} />
+                            <Text style={styles.dividerText}>{t('auth.or')}</Text>
+                            <View style={styles.divider} />
+                        </View>
+
+                        <TouchableOpacity
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                setIsSignUp(!isSignUp);
+                            }}
+                            style={styles.switchButton}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.switchText}>
+                                {isSignUp ? t('auth.has_account') : t('auth.no_account')}
+                            </Text>
+                        </TouchableOpacity>
+                    </GlassCard>
+                </Animated.View>
             </KeyboardAvoidingView>
 
             <FeedbackModal
@@ -204,106 +271,104 @@ const styles = StyleSheet.create({
         right: 20,
         zIndex: 10,
     },
-    languagePill: {
-        flexDirection: 'row',
-        padding: 4,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
-    },
-    langButton: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
-    },
-    langButtonActive: {
-        backgroundColor: COLORS.turfGreen,
-    },
-    langText: {
-        color: 'rgba(255,255,255,0.6)',
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
-    langTextActive: {
-        color: 'white',
-    },
-    langDivider: {
-        width: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        marginHorizontal: 4,
-    },
     content: {
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 24,
+        paddingHorizontal: SPACING.m,
+    },
+    brandContainer: {
+        alignItems: 'center',
+        marginBottom: SPACING.xl,
+    },
+    logoContainer: {
+        marginBottom: SPACING.m,
+    },
+    logoGradient: {
+        width: 72,
+        height: 72,
+        borderRadius: BORDER_RADIUS.l,
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...SHADOWS.glow,
+    },
+    brandText: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: 'white',
+        fontFamily: FONTS.heading,
+        letterSpacing: 4,
     },
     formCard: {
         paddingHorizontal: SPACING.l,
         paddingVertical: SPACING.xl,
-        borderRadius: BORDER_RADIUS.xl,
     },
     title: {
-        fontSize: 48,
-        fontWeight: 'bold',
+        fontSize: 26,
+        fontWeight: '700',
         color: 'white',
-        textAlign: 'center',
-        marginBottom: 8,
+        marginBottom: SPACING.xs,
         fontFamily: FONTS.heading,
-        letterSpacing: 2,
     },
     subtitle: {
         color: COLORS.textSecondary,
-        fontSize: 18,
-        textAlign: 'center',
-        marginBottom: 40,
+        fontSize: 14,
+        marginBottom: SPACING.xl,
         fontFamily: FONTS.body,
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: COLORS.inputBackground,
         borderRadius: BORDER_RADIUS.m,
-        paddingHorizontal: 16,
-        height: 60,
+        height: 56,
         marginBottom: SPACING.m,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: COLORS.inputBorder,
+    },
+    inputWrapperFocused: {
+        borderColor: COLORS.inputFocusBorder,
+        backgroundColor: 'rgba(0, 135, 90, 0.05)',
+    },
+    inputIconContainer: {
+        width: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     input: {
         flex: 1,
         color: 'white',
-        fontSize: 16,
+        fontSize: 15,
         fontFamily: FONTS.body,
         height: '100%',
+        paddingRight: SPACING.m,
     },
     button: {
-        backgroundColor: COLORS.turfGreen,
-        borderRadius: BORDER_RADIUS.m,
-        height: 60,
+        marginTop: SPACING.s,
+    },
+    dividerRow: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: SPACING.m,
-        shadowColor: COLORS.turfGreen,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
+        marginVertical: SPACING.l,
     },
-    buttonDisabled: {
-        opacity: 0.5,
+    divider: {
+        flex: 1,
+        height: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
     },
-    buttonText: {
-        color: 'white',
-        fontSize: 18,
-        fontWeight: 'bold',
-        fontFamily: FONTS.heading,
+    dividerText: {
+        color: COLORS.textTertiary,
+        fontSize: 12,
+        fontFamily: FONTS.body,
+        marginHorizontal: SPACING.m,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     },
-    linkText: {
+    switchButton: {
+        alignItems: 'center',
+        paddingVertical: SPACING.s,
+    },
+    switchText: {
         color: COLORS.accentOrange,
-        textAlign: 'center',
-        marginTop: 30,
         fontSize: 14,
         fontFamily: FONTS.body,
         fontWeight: '600',

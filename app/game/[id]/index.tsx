@@ -240,16 +240,11 @@ export default function GameDetailScreen() {
                 // Revert if failed
                 setVotedMvpTargetId(previousId);
                 console.error('Error deleting vote:', error);
-                // If it's a permission error, we should inform the user?
-                // For now, keep generic error or rely on global error handling?
-                // Showing modal might be too aggressive if it's "silent" failure, but important for debugging.
                 Alert.alert(t('common.error'), t('game.vote_error_title') + ": " + error.message);
             } else {
                 setVoteFeedback(t('game.vote_cancelled_msg'));
                 setTimeout(() => setVoteFeedback(null), 3000);
             }
-            return;
-            setShowMvpVote(false);
             return;
         }
 

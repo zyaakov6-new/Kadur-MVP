@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Profile, Game } from '../../types';
@@ -7,19 +7,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { AchievementBadge } from '../../components/ui/AchievementBadge';
 import { PremiumButton } from '../../components/ui/PremiumButton';
-import { ShareButton } from '../../components/ui/ShareButton'; // Optional, but good to have
 import { LanguageSwitcher } from '../../components/ui/LanguageSwitcher';
-import { FeedbackModal } from '../../components/ui/FeedbackModal';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { LoadingState } from '../../components/ui/LoadingState';
-
-
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 
 type Achievement = {
     id: string;
@@ -33,7 +30,7 @@ type Achievement = {
 export default function ProfileScreen() {
     const { session } = useAuth();
     const { t } = useTranslation();
-    const { language, changeLanguage, isRTL } = useLanguage();
+    const { isRTL } = useLanguage();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [history, setHistory] = useState<Game[]>([]);
     const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -54,7 +51,7 @@ export default function ProfileScreen() {
             .from('profiles')
             .select('*')
             .eq('id', session?.user.id)
-            .maybeSingle(); // Use maybeSingle to avoid PGRST116 if profile doesn't exist yet
+            .maybeSingle();
 
         if (error) {
             console.error(error);
@@ -62,7 +59,6 @@ export default function ProfileScreen() {
             setProfile(data as any);
         }
 
-        // Fetch games joined
         const { data: participations, error: partError } = await supabase
             .from('participants')
             .select('game_id, games(*)')
@@ -73,7 +69,6 @@ export default function ProfileScreen() {
             setHistory(games);
         }
 
-        // Fetch all achievements
         const { data: allAchievements } = await supabase
             .from('achievements')
             .select('*')
@@ -83,7 +78,6 @@ export default function ProfileScreen() {
             setAchievements(allAchievements as any);
         }
 
-        // Fetch user achievements
         const { data: myAchievements } = await supabase
             .from('user_achievements')
             .select('achievement_id')
@@ -125,51 +119,68 @@ export default function ProfileScreen() {
                 colors={COLORS.backgroundGradient as any}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                end={{ x: 0.5, y: 1 }}
             />
             <SafeAreaView style={styles.safeArea}>
-                <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+                <ScrollView
+                    style={styles.scrollView}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
                     {/* Profile Header */}
                     <Animated.View entering={FadeInDown.delay(100).springify()}>
-                        <GlassCard style={styles.profileHeader} intensity={25}>
+                        <GlassCard style={styles.profileHeader} variant="elevated">
                             <View style={[styles.headerTop, isRTL && { flexDirection: 'row-reverse' }]}>
-                                <View style={[styles.avatarContainer, { borderColor: COLORS.turfGreen }]}>
-                                    {profile?.avatar_url ? (
-                                        <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-                                    ) : (
-                                        <Text style={styles.avatarText}>{profile?.full_name?.charAt(0)}</Text>
-                                    )}
+                                <View style={styles.avatarWrapper}>
+                                    <LinearGradient
+                                        colors={[COLORS.turfGreenLight, COLORS.turfGreen]}
+                                        style={styles.avatarGradient}
+                                    >
+                                        {profile?.avatar_url ? (
+                                            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+                                        ) : (
+                                            <Text style={styles.avatarText}>{profile?.full_name?.charAt(0) || '?'}</Text>
+                                        )}
+                                    </LinearGradient>
                                 </View>
+
                                 <View style={[styles.userInfo, isRTL && { alignItems: 'flex-end', marginRight: SPACING.m, marginLeft: 0 }]}>
-                                    <Text style={styles.userName}>{profile?.full_name}</Text>
+                                    <Text style={[styles.userName, isRTL && { textAlign: 'right' }]}>{profile?.full_name}</Text>
                                     <View style={[styles.locationRow, isRTL && { flexDirection: 'row-reverse' }]}>
-                                        <Ionicons name="location-outline" size={14} color={COLORS.textTertiary} />
-                                        <Text style={styles.userCity}>{profile?.city || 'No city set'}</Text>
+                                        <Ionicons name="location" size={13} color={COLORS.textTertiary} />
+                                        <Text style={styles.userCity}>{profile?.city || t('profile.no_city')}</Text>
                                     </View>
                                     <View style={styles.levelBadge}>
+                                        <LinearGradient
+                                            colors={[COLORS.successLight, 'rgba(52, 211, 153, 0.05)']}
+                                            style={StyleSheet.absoluteFill}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 0 }}
+                                        />
+                                        <Ionicons name="star" size={10} color={COLORS.turfGreenLight} />
                                         <Text style={styles.levelText}>{t('profile.level')} {Math.floor(totalXp / 500) + 1}</Text>
                                     </View>
                                 </View>
-                                <View style={styles.headerActions}>
-                                    <TouchableOpacity
-                                        style={styles.actionButton}
-                                        onPress={() => router.push('/profile/edit')}
-                                    >
-                                        <Ionicons name="settings-outline" size={24} color="white" />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
 
+                                <TouchableOpacity
+                                    style={styles.settingsButton}
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        router.push('/profile/edit');
+                                    }}
+                                >
+                                    <Ionicons name="settings-outline" size={22} color={COLORS.textSecondary} />
+                                </TouchableOpacity>
+                            </View>
 
                             {/* Language Switcher */}
                             <View style={[styles.languageRow, isRTL && { flexDirection: 'row-reverse' }]}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <Ionicons name="globe-outline" size={18} color={COLORS.textTertiary} />
-                                    <Text style={[styles.languageLabel, isRTL ? { marginRight: 8 } : { marginLeft: 8 }]}>{t('profile.language')}</Text>
+                                <View style={[styles.languageLabelRow, isRTL && { flexDirection: 'row-reverse' }]}>
+                                    <Ionicons name="globe-outline" size={16} color={COLORS.textTertiary} />
+                                    <Text style={styles.languageLabel}>{t('profile.language')}</Text>
                                 </View>
                                 <LanguageSwitcher />
                             </View>
-
 
                             {/* Stats Grid */}
                             <View style={[styles.statsGrid, isRTL && { flexDirection: 'row-reverse' }]}>
@@ -189,7 +200,10 @@ export default function ProfileScreen() {
                                 </View>
                                 <View style={styles.statDivider} />
                                 <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{profile?.stats?.mvps || 0}</Text>
+                                    <View style={styles.mvpBadge}>
+                                        <Ionicons name="trophy" size={12} color={COLORS.accentGold} />
+                                    </View>
+                                    <Text style={[styles.statValue, { color: COLORS.accentGold }]}>{profile?.stats?.mvps || 0}</Text>
                                     <Text style={styles.statLabel}>{t('profile.mvps')}</Text>
                                 </View>
                             </View>
@@ -197,105 +211,148 @@ export default function ProfileScreen() {
                     </Animated.View>
 
                     {/* Trophy Cabinet */}
-                    <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.sectionContainer}>
-                        <View style={[styles.sectionHeader, isRTL && { flexDirection: 'row-reverse' }]}>
-                            <Text style={styles.sectionTitle}>{t('profile.trophy_cabinet')}</Text>
-                            <Text style={styles.sectionSubtitle}>{userAchievements.size}/{achievements.length} {t('profile.unlocked')}</Text>
-                        </View>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.badgesScroll, isRTL && { paddingLeft: SPACING.m, paddingRight: 0 }]}>
-                            {achievements.map((achievement, index) => (
-                                <AchievementBadge
-                                    key={achievement.id}
-                                    title={achievement.title}
-                                    description={achievement.description}
-                                    icon={achievement.icon}
-                                    xp={achievement.xp}
-                                    locked={!userAchievements.has(achievement.id)}
-                                    index={index}
-                                />
-                            ))}
-                        </ScrollView>
-                    </Animated.View>
+                    {achievements.length > 0 && (
+                        <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.sectionContainer}>
+                            <View style={[styles.sectionHeader, isRTL && { flexDirection: 'row-reverse' }]}>
+                                <View style={[styles.sectionTitleRow, isRTL && { flexDirection: 'row-reverse' }]}>
+                                    <Ionicons name="trophy" size={18} color={COLORS.accentGold} />
+                                    <Text style={styles.sectionTitle}>{t('profile.trophy_cabinet')}</Text>
+                                </View>
+                                <Text style={styles.sectionSubtitle}>{userAchievements.size}/{achievements.length}</Text>
+                            </View>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={[styles.badgesScroll, isRTL && { paddingLeft: SPACING.m, paddingRight: 0 }]}
+                            >
+                                {achievements.map((achievement, index) => (
+                                    <AchievementBadge
+                                        key={achievement.id}
+                                        title={achievement.title}
+                                        description={achievement.description}
+                                        icon={achievement.icon}
+                                        xp={achievement.xp}
+                                        locked={!userAchievements.has(achievement.id)}
+                                        index={index}
+                                    />
+                                ))}
+                            </ScrollView>
+                        </Animated.View>
+                    )}
 
                     {/* Game History */}
                     <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.sectionContainer}>
-                        <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>{t('profile.my_games')}</Text>
+                        <View style={[styles.sectionHeader, isRTL && { flexDirection: 'row-reverse' }]}>
+                            <View style={[styles.sectionTitleRow, isRTL && { flexDirection: 'row-reverse' }]}>
+                                <Ionicons name="football" size={18} color={COLORS.turfGreenLight} />
+                                <Text style={styles.sectionTitle}>{t('profile.my_games')}</Text>
+                            </View>
+                        </View>
 
                         {/* Tabs */}
                         <View style={[styles.tabsContainer, isRTL && { flexDirection: 'row-reverse' }]}>
                             <TouchableOpacity
                                 style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]}
-                                onPress={() => setActiveTab('upcoming')}
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    setActiveTab('upcoming');
+                                }}
                             >
-                                <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>{t('profile.upcoming')}</Text>
+                                {activeTab === 'upcoming' && (
+                                    <LinearGradient
+                                        colors={[COLORS.turfGreenLight, COLORS.turfGreen]}
+                                        style={StyleSheet.absoluteFill}
+                                    />
+                                )}
+                                <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>
+                                    {t('profile.upcoming')}
+                                </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.tab, activeTab === 'past' && styles.activeTab]}
-                                onPress={() => setActiveTab('past')}
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    setActiveTab('past');
+                                }}
                             >
-                                <Text style={[styles.tabText, activeTab === 'past' && styles.activeTabText]}>{t('profile.past')}</Text>
+                                {activeTab === 'past' && (
+                                    <LinearGradient
+                                        colors={[COLORS.turfGreenLight, COLORS.turfGreen]}
+                                        style={StyleSheet.absoluteFill}
+                                    />
+                                )}
+                                <Text style={[styles.tabText, activeTab === 'past' && styles.activeTabText]}>
+                                    {t('profile.past')}
+                                </Text>
                             </TouchableOpacity>
                         </View>
 
-                        {filteredHistory.map((game, index) => (
-                            <TouchableOpacity
-                                key={game.id}
-                                onPress={() => router.push(`/game/${game.id}`)}
-                            >
-                                <GlassCard style={styles.gameCard} intensity={10} noPadding>
-                                    <View style={[styles.gameCardInner, isRTL && { flexDirection: 'row-reverse' }]}>
-                                        <View style={[styles.gameMain, isRTL && { alignItems: 'flex-end' }]}>
-                                            <Text style={styles.gameTitle} numberOfLines={1}>{game.title}</Text>
-                                            <View style={[styles.gameMeta, isRTL && { flexDirection: 'row-reverse' }]}>
-                                                <Ionicons name="calendar-outline" size={12} color={COLORS.textTertiary} />
-                                                <Text style={styles.gameDate}>
-                                                    {new Date(game.start_time).toLocaleDateString()}
+                        {filteredHistory.length > 0 ? (
+                            filteredHistory.map((game) => (
+                                <TouchableOpacity
+                                    key={game.id}
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        router.push(`/game/${game.id}`);
+                                    }}
+                                    activeOpacity={0.8}
+                                >
+                                    <GlassCard style={styles.gameCard} variant="subtle" noPadding>
+                                        <View style={[styles.gameCardInner, isRTL && { flexDirection: 'row-reverse' }]}>
+                                            <View style={[styles.gameMain, isRTL && { alignItems: 'flex-end' }]}>
+                                                <Text style={[styles.gameTitle, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
+                                                    {game.title}
                                                 </Text>
+                                                <View style={[styles.gameMeta, isRTL && { flexDirection: 'row-reverse' }]}>
+                                                    <Ionicons name="calendar" size={11} color={COLORS.textTertiary} />
+                                                    <Text style={styles.gameDate}>
+                                                        {new Date(game.start_time).toLocaleDateString(isRTL ? 'he-IL' : 'en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                        })}
+                                                    </Text>
+                                                </View>
                                             </View>
+                                            <View style={styles.formatBadge}>
+                                                <Text style={styles.formatText}>{game.format}</Text>
+                                            </View>
+                                            <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color={COLORS.textTertiary} />
                                         </View>
-
-                                        <View style={styles.formatBadge}>
-                                            <Text style={styles.formatText}>{game.format}</Text>
-                                        </View>
-
-                                        <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color={COLORS.textTertiary} />
-                                    </View>
-                                </GlassCard>
-                            </TouchableOpacity>
-                        ))}
-
-                        {filteredHistory.length === 0 && (
+                                    </GlassCard>
+                                </TouchableOpacity>
+                            ))
+                        ) : (
                             <View style={styles.emptyContainer}>
+                                <Ionicons name="football-outline" size={32} color={COLORS.textTertiary} />
                                 <Text style={styles.emptyText}>{t('profile.no_games')}</Text>
                             </View>
                         )}
                     </Animated.View>
 
-                    {/* Legal Section */}
-                    <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.sectionContainer}>
+                    {/* Legal */}
+                    <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.legalSection}>
                         <View style={[styles.legalContainer, isRTL && { flexDirection: 'row-reverse' }]}>
                             <TouchableOpacity onPress={() => router.push('/legal/privacy')}>
                                 <Text style={styles.legalLink}>{t('legal.privacy_policy')}</Text>
                             </TouchableOpacity>
-                            <Text style={styles.legalDivider}>•</Text>
+                            <Text style={styles.legalDivider}>|</Text>
                             <TouchableOpacity onPress={() => router.push('/legal/terms')}>
                                 <Text style={styles.legalLink}>{t('legal.terms_of_service')}</Text>
                             </TouchableOpacity>
                         </View>
                     </Animated.View>
 
-                    {/* Logout Button */}
+                    {/* Logout */}
                     <Animated.View entering={FadeInUp.delay(500).springify()} style={styles.footer}>
                         <PremiumButton
                             title={t('auth.sign_out')}
                             onPress={handleSignOut}
                             variant="glass"
+                            icon={<Ionicons name="log-out-outline" size={20} color={COLORS.error} />}
                             style={styles.signOutButton}
                             textStyle={styles.signOutText}
-                            icon={<Ionicons name="log-out-outline" size={20} color="#ef4444" />}
                         />
                     </Animated.View>
-
                 </ScrollView>
             </SafeAreaView>
         </View>
@@ -307,12 +364,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.darkBackground,
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: COLORS.darkBackground,
-    },
     safeArea: {
         flex: 1,
     },
@@ -321,28 +372,28 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: SPACING.m,
-        paddingBottom: 100,
+        paddingBottom: 120,
     },
     profileHeader: {
-        padding: SPACING.l,
-        borderRadius: BORDER_RADIUS.xl,
         marginBottom: SPACING.l,
     },
     headerTop: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: SPACING.l,
+        marginBottom: SPACING.m,
     },
-
-    avatarContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: 'transparent',
+    avatarWrapper: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        padding: 2,
+        backgroundColor: COLORS.turfGreen + '30',
+    },
+    avatarGradient: {
+        flex: 1,
+        borderRadius: 34,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: SPACING.m,
-        borderWidth: 0,
         overflow: 'hidden',
     },
     avatar: {
@@ -350,61 +401,86 @@ const styles = StyleSheet.create({
         height: '100%',
     },
     avatarText: {
-        fontSize: 32,
-        fontWeight: 'bold',
+        fontSize: 28,
+        fontWeight: '700',
         color: 'white',
         fontFamily: FONTS.heading,
     },
     userInfo: {
         flex: 1,
+        marginLeft: SPACING.m,
     },
     userName: {
-        fontSize: 24,
-        fontWeight: 'bold',
+        fontSize: 22,
+        fontWeight: '700',
         color: 'white',
         fontFamily: FONTS.heading,
-        marginBottom: 4,
+        marginBottom: 2,
     },
     locationRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: SPACING.s,
+        gap: 4,
     },
     userCity: {
-        color: COLORS.textSecondary,
-        fontSize: 14,
-        marginLeft: 4,
-        marginRight: 4,
+        color: COLORS.textTertiary,
+        fontSize: 13,
         fontFamily: FONTS.body,
     },
     levelBadge: {
-        backgroundColor: 'transparent',
-        paddingVertical: 4,
-        borderRadius: BORDER_RADIUS.s,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: SPACING.s,
+        paddingVertical: 3,
+        borderRadius: BORDER_RADIUS.xs,
         alignSelf: 'flex-start',
-        borderWidth: 0,
+        overflow: 'hidden',
     },
     levelText: {
-        color: COLORS.turfGreen,
-        fontWeight: 'bold',
-        fontSize: 11,
+        color: COLORS.turfGreenLight,
+        fontWeight: '700',
+        fontSize: 10,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
-    headerActions: {
-        alignSelf: 'flex-start',
+    settingsButton: {
+        width: 40,
+        height: 40,
+        borderRadius: BORDER_RADIUS.s,
+        backgroundColor: COLORS.inputBackground,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.inputBorder,
     },
-    actionButton: {
-        padding: 8,
+    languageRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingTop: SPACING.m,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.06)',
+        marginTop: SPACING.s,
     },
-
-
+    languageLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    languageLabel: {
+        color: COLORS.textSecondary,
+        fontSize: 13,
+        fontFamily: FONTS.body,
+    },
     statsGrid: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         paddingTop: SPACING.m,
         borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.1)',
+        borderTopColor: 'rgba(255,255,255,0.06)',
+        marginTop: SPACING.m,
     },
     statItem: {
         alignItems: 'center',
@@ -412,48 +488,83 @@ const styles = StyleSheet.create({
     },
     statValue: {
         fontSize: 20,
-        fontWeight: 'bold',
+        fontWeight: '700',
         color: 'white',
         fontFamily: FONTS.heading,
-        marginBottom: 4,
     },
     statLabel: {
-        color: COLORS.textSecondary,
-        fontSize: 12,
+        color: COLORS.textTertiary,
+        fontSize: 10,
         textTransform: 'uppercase',
         fontFamily: FONTS.body,
+        marginTop: 2,
+        letterSpacing: 0.5,
     },
     statDivider: {
         width: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        height: '80%',
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        height: '70%',
         alignSelf: 'center',
     },
+    mvpBadge: {
+        marginBottom: 2,
+    },
     sectionContainer: {
-        marginBottom: SPACING.xl,
+        marginBottom: SPACING.l,
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'baseline',
+        alignItems: 'center',
         marginBottom: SPACING.m,
     },
+    sectionTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.s,
+    },
     sectionTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
+        fontSize: 18,
+        fontWeight: '700',
         color: 'white',
         fontFamily: FONTS.heading,
     },
     sectionSubtitle: {
-        color: COLORS.textSecondary,
-        fontSize: 14,
+        color: COLORS.textTertiary,
+        fontSize: 12,
+        fontFamily: FONTS.body,
     },
     badgesScroll: {
         paddingRight: SPACING.m,
     },
+    tabsContainer: {
+        flexDirection: 'row',
+        marginBottom: SPACING.m,
+        backgroundColor: COLORS.inputBackground,
+        borderRadius: BORDER_RADIUS.m,
+        padding: 4,
+        borderWidth: 1,
+        borderColor: COLORS.inputBorder,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 8,
+        alignItems: 'center',
+        borderRadius: BORDER_RADIUS.s,
+        overflow: 'hidden',
+    },
+    activeTab: {},
+    tabText: {
+        color: COLORS.textTertiary,
+        fontWeight: '600',
+        fontSize: 13,
+        fontFamily: FONTS.body,
+    },
+    activeTabText: {
+        color: 'white',
+    },
     gameCard: {
         marginBottom: SPACING.s,
-        borderRadius: BORDER_RADIUS.m,
     },
     gameCardInner: {
         flexDirection: 'row',
@@ -463,165 +574,73 @@ const styles = StyleSheet.create({
     gameMain: {
         flex: 1,
     },
+    gameTitle: {
+        fontWeight: '600',
+        color: 'white',
+        fontSize: 15,
+        marginBottom: 2,
+        fontFamily: FONTS.heading,
+    },
     gameMeta: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
     },
+    gameDate: {
+        color: COLORS.textTertiary,
+        fontSize: 11,
+        fontFamily: FONTS.body,
+    },
     formatBadge: {
-        backgroundColor: 'transparent',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: BORDER_RADIUS.full,
-        borderWidth: 0,
-        marginHorizontal: 12,
+        backgroundColor: COLORS.successLight,
+        paddingHorizontal: SPACING.s,
+        paddingVertical: 3,
+        borderRadius: BORDER_RADIUS.xs,
+        marginHorizontal: SPACING.m,
     },
     formatText: {
-        color: '#4AAF57',
-        fontWeight: 'bold',
+        color: COLORS.turfGreenLight,
+        fontWeight: '700',
         fontSize: 10,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
-
-    gameTitle: {
-        fontWeight: 'bold',
-        color: 'white',
-        fontSize: 16,
-        marginBottom: 4,
-        fontFamily: FONTS.heading,
-    },
-    gameDate: {
-        color: COLORS.textSecondary,
-        fontSize: 12,
-    },
-    statusBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: BORDER_RADIUS.s,
-    },
-    statusOpen: {
-        backgroundColor: 'transparent',
-    },
-    statusClosed: {
-        backgroundColor: 'transparent',
-    },
-    statusText: {
-        fontSize: 10,
-        fontWeight: 'bold',
-    },
-    statusTextOpen: {
-        color: '#4ade80',
-    },
-    statusTextClosed: {
-        color: COLORS.textSecondary,
-    },
     emptyContainer: {
         alignItems: 'center',
-        padding: SPACING.l,
+        padding: SPACING.xl,
+        gap: SPACING.s,
     },
     emptyText: {
-        color: COLORS.textSecondary,
-        fontStyle: 'italic',
-    },
-    footer: {
-        marginBottom: SPACING.xl,
-    },
-    signOutButton: {
-        backgroundColor: 'rgba(239, 68, 68, 0.08)',
-        borderColor: 'rgba(239, 68, 68, 0.2)',
-        borderWidth: 1,
-        height: 56,
-    },
-
-    signOutText: {
-        color: '#ef4444',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    tabsContainer: {
-        flexDirection: 'row',
-        marginBottom: SPACING.m,
-        backgroundColor: 'transparent',
-        borderRadius: BORDER_RADIUS.m,
-        padding: 4,
-    },
-    tab: {
-        flex: 1,
-        paddingVertical: 8,
-        alignItems: 'center',
-        borderRadius: BORDER_RADIUS.s,
-    },
-    activeTab: {
-        backgroundColor: 'rgba(74, 175, 87, 0.15)',
-    },
-    tabText: {
-        color: COLORS.textSecondary,
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
-    activeTabText: {
-        color: 'white',
-    },
-    languageRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingTop: SPACING.m,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.1)',
-        marginTop: SPACING.m,
-    },
-    languageLabel: {
-        color: COLORS.textSecondary,
-        fontSize: 14,
+        color: COLORS.textTertiary,
+        fontSize: 13,
         fontFamily: FONTS.body,
     },
-    languageToggle: {
-        flexDirection: 'row',
-        backgroundColor: 'transparent',
-        borderRadius: BORDER_RADIUS.m,
-        padding: 4,
+    legalSection: {
+        marginBottom: SPACING.m,
     },
-    langButton: {
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: BORDER_RADIUS.s,
-    },
-    activeLangButton: {
-        backgroundColor: 'rgba(74, 175, 87, 0.15)',
-    },
-    langText: {
-        color: COLORS.textTertiary,
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
-    activeLangText: {
-        color: 'white',
-    },
-
     legalContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: SPACING.m,
+        gap: SPACING.m,
     },
     legalLink: {
-        color: COLORS.textSecondary,
+        color: COLORS.textTertiary,
         fontSize: 12,
-        textDecorationLine: 'underline',
+        fontFamily: FONTS.body,
     },
     legalDivider: {
-        color: COLORS.textSecondary,
-        marginHorizontal: 8,
+        color: COLORS.textMuted,
     },
-    editButton: {
-        borderRadius: BORDER_RADIUS.m,
-        overflow: 'hidden',
+    footer: {
+        marginBottom: SPACING.l,
     },
-    editButtonGradient: {
-        padding: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
+    signOutButton: {
+        backgroundColor: COLORS.errorLight,
+        borderWidth: 1,
+        borderColor: 'rgba(248, 113, 113, 0.25)',
+    },
+    signOutText: {
+        color: COLORS.error,
     },
 });

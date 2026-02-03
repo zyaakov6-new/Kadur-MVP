@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, StyleSheet, TextInput, Image } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert, StyleSheet, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,15 +7,15 @@ import { Game } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { EmptyState } from '../../components/ui/EmptyState';
+import * as Haptics from 'expo-haptics';
 
 export default function ChatsScreen() {
     const { t } = useTranslation();
@@ -29,7 +29,6 @@ export default function ChatsScreen() {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Refresh when screen comes into focus
     useFocusEffect(
         useCallback(() => {
             if (session?.user) {
@@ -62,7 +61,7 @@ export default function ChatsScreen() {
         const { data, error } = await supabase
             .from('participants')
             .select(`
-                game_id, 
+                game_id,
                 games:game_id (
                     *,
                     messages:messages (created_at)
@@ -138,6 +137,73 @@ export default function ChatsScreen() {
         return timeB - timeA;
     });
 
+    const formatTime = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = now.getTime() - date.getTime();
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const days = Math.floor(hours / 24);
+
+        if (days > 0) {
+            return `${days}d`;
+        } else if (hours > 0) {
+            return `${hours}h`;
+        } else {
+            return date.toLocaleTimeString(isRTL ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+    };
+
+    const renderChatItem = ({ item, index }: { item: Game; index: number }) => (
+        <Animated.View entering={FadeInDown.delay(index * 60).springify()}>
+            <TouchableOpacity
+                onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(`/game/${item.id}/chat`);
+                }}
+                onLongPress={() => handleDeleteChat(item.id)}
+                activeOpacity={0.8}
+            >
+                <GlassCard style={styles.chatCard} variant="subtle" noPadding>
+                    <View style={[styles.chatItemContent, isRTL && { flexDirection: 'row-reverse' }]}>
+                        <View style={styles.avatarContainer}>
+                            <LinearGradient
+                                colors={[COLORS.turfGreenLight + '30', COLORS.turfGreen + '20']}
+                                style={styles.avatarGradient}
+                            >
+                                <Ionicons name="chatbubbles" size={22} color={COLORS.turfGreenLight} />
+                            </LinearGradient>
+                        </View>
+
+                        <View style={[styles.chatMainInfo, isRTL && { alignItems: 'flex-end', marginRight: SPACING.m, marginLeft: 0 }]}>
+                            <Text style={[styles.chatName, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
+                                {item.title}
+                            </Text>
+                            <View style={[styles.chatPreviewRow, isRTL && { flexDirection: 'row-reverse' }]}>
+                                <View style={[styles.formatMini, isRTL && { marginRight: 0, marginLeft: SPACING.xs }]}>
+                                    <Text style={styles.formatMiniText}>{item.format}</Text>
+                                </View>
+                                <Text style={styles.chatPreviewText} numberOfLines={1}>
+                                    {t('chats.tap_to_view')}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <View style={[styles.chatMeta, isRTL && { alignItems: 'flex-start' }]}>
+                            <Text style={styles.chatTime}>
+                                {(item as any).last_activity ? formatTime((item as any).last_activity) : ''}
+                            </Text>
+                            <Ionicons
+                                name={isRTL ? "chevron-back" : "chevron-forward"}
+                                size={16}
+                                color={COLORS.textTertiary}
+                                style={{ marginTop: 4 }}
+                            />
+                        </View>
+                    </View>
+                </GlassCard>
+            </TouchableOpacity>
+        </Animated.View>
+    );
 
     return (
         <View style={styles.container}>
@@ -145,47 +211,81 @@ export default function ChatsScreen() {
                 colors={COLORS.backgroundGradient as any}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                end={{ x: 0.5, y: 1 }}
             />
             <SafeAreaView style={styles.safeArea} edges={['top']}>
+                {/* Header */}
                 <View style={[styles.header, isRTL && { flexDirection: 'row-reverse' }]}>
-                    <Text style={[styles.headerTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t('chats.title')}</Text>
+                    <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t('chats.title')}</Text>
                 </View>
 
-                {/* Search Bar */}
+                {/* Search */}
                 <View style={styles.searchContainer}>
                     <View style={[styles.searchPill, isRTL && { flexDirection: 'row-reverse' }]}>
-                        <Ionicons name="search" size={20} color={COLORS.textTertiary} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
+                        <View style={styles.searchIconContainer}>
+                            <Ionicons name="search" size={18} color={COLORS.textTertiary} />
+                        </View>
                         <TextInput
                             style={[styles.searchInput, isRTL && { textAlign: 'right' }]}
                             placeholder={t('explore.search_placeholder')}
                             placeholderTextColor={COLORS.textTertiary}
                             value={searchQuery}
                             onChangeText={setSearchQuery}
+                            selectionColor={COLORS.turfGreenLight}
                         />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+                                <Ionicons name="close-circle" size={18} color={COLORS.textTertiary} />
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
 
-                <View style={[styles.tabsContainer, isRTL && { flexDirection: 'row-reverse' }]}>
+                {/* Tabs */}
+                <View style={[styles.tabsWrapper, isRTL && { flexDirection: 'row-reverse' }]}>
                     <TouchableOpacity
                         style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]}
-                        onPress={() => setActiveTab('upcoming')}
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setActiveTab('upcoming');
+                        }}
+                        activeOpacity={0.7}
                     >
+                        {activeTab === 'upcoming' && (
+                            <LinearGradient
+                                colors={[COLORS.turfGreenLight, COLORS.turfGreen]}
+                                style={StyleSheet.absoluteFill}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                            />
+                        )}
                         <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>
                             {t('chats.active')}
                         </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.tab, activeTab === 'past' && styles.activeTab]}
-                        onPress={() => setActiveTab('past')}
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setActiveTab('past');
+                        }}
+                        activeOpacity={0.7}
                     >
+                        {activeTab === 'past' && (
+                            <LinearGradient
+                                colors={[COLORS.turfGreenLight, COLORS.turfGreen]}
+                                style={StyleSheet.absoluteFill}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                            />
+                        )}
                         <Text style={[styles.tabText, activeTab === 'past' && styles.activeTabText]}>
                             {t('chats.past')}
                         </Text>
                     </TouchableOpacity>
                 </View>
 
-
+                {/* Content */}
                 {loading ? (
                     <LoadingState />
                 ) : (
@@ -193,42 +293,16 @@ export default function ChatsScreen() {
                         data={filteredGames}
                         keyExtractor={(item) => item.id}
                         contentContainerStyle={styles.listContent}
+                        showsVerticalScrollIndicator={false}
                         refreshControl={
-                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accentOrange} />
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                tintColor={COLORS.turfGreenLight}
+                                colors={[COLORS.turfGreen]}
+                            />
                         }
-                        renderItem={({ item, index }) => (
-                            <Animated.View entering={FadeInDown.delay(index * 100).springify()}>
-                                <TouchableOpacity
-                                    onPress={() => router.push(`/game/${item.id}/chat`)}
-                                    onLongPress={() => handleDeleteChat(item.id)}
-                                    style={styles.chatItem}
-                                >
-                                    <View style={[styles.chatItemContent, isRTL && { flexDirection: 'row-reverse' }]}>
-                                        <View style={styles.avatarContainer}>
-                                            <View style={styles.avatarInner}>
-                                                <Ionicons name="people" size={24} color={COLORS.turfGreen} />
-                                            </View>
-                                        </View>
-
-                                        <View style={[styles.chatMainInfo, isRTL ? { marginRight: SPACING.m } : { marginLeft: SPACING.m }]}>
-                                            <Text style={[styles.chatName, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
-                                                {item.title}
-                                            </Text>
-                                            <Text style={[styles.chatPreviewText, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
-                                                {t('chats.tap_to_view')}
-                                            </Text>
-                                        </View>
-
-                                        <View style={[styles.chatMeta, isRTL && { alignItems: 'flex-start' }]}>
-                                            <Text style={styles.chatTime}>
-                                                {(item as any).last_activity ? new Date((item as any).last_activity).toLocaleTimeString(isRTL ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : ''}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.separator} />
-                                </TouchableOpacity>
-                            </Animated.View>
-                        )}
+                        renderItem={renderChatItem}
                         ListEmptyComponent={
                             <EmptyState
                                 icon="chatbubbles-outline"
@@ -255,142 +329,129 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: SPACING.m,
-        paddingTop: SPACING.l,
+        paddingHorizontal: SPACING.l,
+        paddingTop: SPACING.m,
         paddingBottom: SPACING.s,
-    },
-    headerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    headerAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginRight: 12,
-        borderWidth: 1.5,
-        borderColor: 'rgba(255,255,255,0.2)',
-        display: 'none',
-    },
-    headerAvatarPlaceholder: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-        display: 'none',
     },
     headerTitle: {
         fontSize: 32,
-        fontWeight: '900',
+        fontWeight: '800',
         color: 'white',
         fontFamily: FONTS.heading,
-        letterSpacing: -0.5,
-        flex: 1,
-    },
-    addButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        overflow: 'hidden',
-    },
-    addButtonGradient: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
+        letterSpacing: 0.5,
     },
     searchContainer: {
-        paddingHorizontal: SPACING.m,
-        marginVertical: SPACING.m,
+        paddingHorizontal: SPACING.l,
+        marginBottom: SPACING.m,
     },
     searchPill: {
-        height: 56,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderRadius: 28,
+        height: 50,
+        backgroundColor: COLORS.inputBackground,
+        borderRadius: BORDER_RADIUS.m,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: COLORS.inputBorder,
+    },
+    searchIconContainer: {
+        width: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     searchInput: {
         flex: 1,
         color: 'white',
-        fontSize: 16,
+        fontSize: 15,
         fontFamily: FONTS.body,
     },
-    tabsContainer: {
+    clearButton: {
+        width: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    tabsWrapper: {
         flexDirection: 'row',
-        marginHorizontal: SPACING.m,
+        marginHorizontal: SPACING.l,
         marginBottom: SPACING.m,
-        backgroundColor: 'rgba(0,0,0,0.2)',
-        borderRadius: 20,
+        backgroundColor: COLORS.inputBackground,
+        borderRadius: BORDER_RADIUS.m,
         padding: 4,
+        borderWidth: 1,
+        borderColor: COLORS.inputBorder,
     },
     tab: {
         flex: 1,
         paddingVertical: 10,
         alignItems: 'center',
-        borderRadius: 16,
+        borderRadius: BORDER_RADIUS.s,
+        overflow: 'hidden',
     },
     activeTab: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderColor: COLORS.turfGreen,
     },
     tabText: {
         color: COLORS.textTertiary,
-        fontWeight: 'bold',
+        fontWeight: '600',
         fontSize: 14,
         fontFamily: FONTS.body,
     },
     activeTabText: {
         color: 'white',
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
     listContent: {
-        paddingBottom: 100,
-    },
-    chatItem: {
         paddingHorizontal: SPACING.m,
+        paddingBottom: 120,
+    },
+    chatCard: {
+        marginBottom: SPACING.s,
     },
     chatItemContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 14,
+        padding: SPACING.m,
     },
     avatarContainer: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        padding: 2,
+        width: 52,
+        height: 52,
+        borderRadius: BORDER_RADIUS.m,
+        overflow: 'hidden',
     },
-    avatarInner: {
+    avatarGradient: {
         flex: 1,
-        borderRadius: 28,
-        backgroundColor: 'rgba(255,255,255,0.08)',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'hidden',
     },
     chatMainInfo: {
         flex: 1,
+        marginLeft: SPACING.m,
     },
     chatName: {
-        fontSize: 17,
-        fontWeight: 'bold',
+        fontSize: 16,
+        fontWeight: '700',
         color: 'white',
         fontFamily: FONTS.heading,
         marginBottom: 4,
     },
+    chatPreviewRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    formatMini: {
+        backgroundColor: COLORS.successLight,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: BORDER_RADIUS.xs,
+        marginRight: SPACING.xs,
+    },
+    formatMiniText: {
+        color: COLORS.turfGreenLight,
+        fontSize: 9,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+    },
     chatPreviewText: {
-        fontSize: 14,
-        color: COLORS.textSecondary,
+        fontSize: 13,
+        color: COLORS.textTertiary,
         fontFamily: FONTS.body,
     },
     chatMeta: {
@@ -398,54 +459,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     chatTime: {
-        fontSize: 12,
-        color: COLORS.accentOrange,
-        fontWeight: '600',
-        marginBottom: 6,
-    },
-    unreadBadge: {
-        backgroundColor: COLORS.accentOrange,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 12,
-        minWidth: 24,
-        alignItems: 'center',
-    },
-    unreadText: {
-        color: 'white',
         fontSize: 11,
-        fontWeight: 'bold',
-    },
-    separator: {
-        height: 1,
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        marginLeft: 76,
-    },
-    emptyContainer: {
-        alignItems: 'center',
-        marginTop: 60,
-        padding: 40,
-    },
-    emptyIconContainer: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 20,
-    },
-    emptyTitle: {
-        color: 'white',
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        fontFamily: FONTS.heading,
-    },
-    emptyText: {
-        color: COLORS.textSecondary,
-        textAlign: 'center',
-        lineHeight: 24,
-        fontFamily: FONTS.body,
+        color: COLORS.textTertiary,
+        fontWeight: '600',
     },
 });

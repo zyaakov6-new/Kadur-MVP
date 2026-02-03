@@ -1,23 +1,20 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, ScrollView, TextInput, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, ScrollView, TextInput, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { Game } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { GlassCard } from '../../components/ui/GlassCard';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { CityDropdown } from '../../components/ui/CityDropdown';
-
-const { width } = Dimensions.get('window');
+import * as Haptics from 'expo-haptics';
 
 export default function ExploreScreen() {
   const { t } = useTranslation();
@@ -28,60 +25,37 @@ export default function ExploreScreen() {
   const [selectedFormat, setSelectedFormat] = useState('All');
   const [selectedDate, setSelectedDate] = useState('All');
   const [selectedCity, setSelectedCity] = useState('All');
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
-  // Refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchGames();
-    }, [activeTab])
+    }, [])
   );
 
   useEffect(() => {
     fetchGames();
 
-    // Subscribe to realtime updates for new games
     const channel = supabase
       .channel('games_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
-          schema: 'public',
-          table: 'games',
-        },
-        (payload) => {
-          console.log('Game change detected:', payload);
-          // Refetch games when any change occurs
-          fetchGames();
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => {
+        fetchGames();
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeTab]);
+  }, []);
 
   const fetchGames = async () => {
-    let query = supabase
+    const { data, error } = await supabase
       .from('games')
-      .select('*');
-
-    if (activeTab === 'upcoming') {
-      query = query
-        .eq('status', 'open')
-        .gt('start_time', new Date().toISOString())
-        .order('start_time', { ascending: true });
-    } else {
-      query = query
-        .lt('start_time', new Date().toISOString())
-        .order('start_time', { ascending: false });
-    }
-
-    const { data, error } = await query;
+      .select('*')
+      .eq('status', 'open')
+      .gt('start_time', new Date().toISOString())
+      .order('start_time', { ascending: true });
 
     if (error) {
       console.error(error);
@@ -121,21 +95,18 @@ export default function ExploreScreen() {
     }
 
     if (selectedCity !== 'All') {
-      // Check if address includes the selected city
       if (!game.address?.includes(selectedCity)) return false;
     }
 
     return true;
   });
 
-  // Extract unique cities from games (upcoming only ideally, or all loaded games)
   const uniqueCities = Array.from(new Set(games.map(g => {
     if (!g.address) return null;
     const parts = g.address.split(',');
     if (parts.length > 1) {
       let potentialCity = parts[parts.length - 1].trim();
-      // If last part is country (Israel), take the one before
-      if (potentialCity.toLowerCase() === 'israel' || potentialCity.toLowerCase() === 'ישראל' || potentialCity.toLowerCase() === 'il') {
+      if (potentialCity.toLowerCase() === 'israel' || potentialCity.toLowerCase() === 'il') {
         if (parts.length > 2) {
           potentialCity = parts[parts.length - 2].trim();
         } else {
@@ -147,17 +118,112 @@ export default function ExploreScreen() {
     return g.address.trim();
   }).filter(c => c && c.length > 0))) as string[];
 
-  const FilterChip = ({ label, selected, onPress }: { label: string, selected: boolean, onPress: () => void }) => (
+  const FilterChip = ({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) => (
     <TouchableOpacity
-      style={[
-        styles.filterChip,
-        selected && styles.filterChipSelected
-      ]}
-      onPress={onPress}
+      style={[styles.filterChip, selected && styles.filterChipSelected]}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
+      activeOpacity={0.7}
     >
+      {selected && (
+        <LinearGradient
+          colors={[COLORS.turfGreenLight, COLORS.turfGreen]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
       <Text style={[styles.filterChipText, selected && styles.filterChipTextSelected]}>{label}</Text>
     </TouchableOpacity>
   );
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return t('common.today');
+    } else if (date.toDateString() === tomorrow.toDateString()) {
+      return t('common.tomorrow');
+    }
+    return date.toLocaleDateString(isRTL ? 'he-IL' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString(isRTL ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const renderGameCard = ({ item, index }: { item: Game; index: number }) => {
+    const spotsLeft = item.max_players - (item.current_players || 0);
+    const isFilling = spotsLeft <= 3 && spotsLeft > 0;
+
+    return (
+      <Animated.View entering={FadeInDown.delay(index * 60).springify()}>
+        <TouchableOpacity
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push(`/game/${item.id}`);
+          }}
+          activeOpacity={0.9}
+        >
+          <GlassCard style={styles.gameCard} variant="default">
+            <View style={[styles.gameCardHeader, isRTL && { flexDirection: 'row-reverse' }]}>
+              <View style={[styles.gameInfoLeft, isRTL && { alignItems: 'flex-end' }]}>
+                <Text style={[styles.gameTitle, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <View style={[styles.metaRow, isRTL && { flexDirection: 'row-reverse' }]}>
+                  <View style={[styles.metaBadge, isRTL && { flexDirection: 'row-reverse' }]}>
+                    <Ionicons name="calendar" size={11} color={COLORS.turfGreenLight} />
+                    <Text style={styles.metaText}>{formatDate(item.start_time)}</Text>
+                  </View>
+                  <View style={[styles.metaBadge, isRTL && { flexDirection: 'row-reverse' }]}>
+                    <Ionicons name="time" size={11} color={COLORS.turfGreenLight} />
+                    <Text style={styles.metaText}>{formatTime(item.start_time)}</Text>
+                  </View>
+                </View>
+                {item.address && (
+                  <View style={[styles.locationRow, isRTL && { flexDirection: 'row-reverse' }]}>
+                    <Ionicons name="location" size={11} color={COLORS.textTertiary} />
+                    <Text style={styles.locationText} numberOfLines={1}>{item.address.split(',')[0]}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.formatBadge}>
+                <Text style={styles.formatText}>{item.format}</Text>
+              </View>
+            </View>
+
+            {item.description && (
+              <Text style={[styles.gameDescription, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
+                {item.description}
+              </Text>
+            )}
+
+            <View style={styles.divider} />
+
+            <View style={[styles.gameFooter, isRTL && { flexDirection: 'row-reverse' }]}>
+              <View style={[styles.spotsBadge, isFilling && styles.spotsBadgeFilling]}>
+                <Ionicons name="people" size={13} color={isFilling ? COLORS.accentOrange : COLORS.turfGreenLight} />
+                <Text style={[styles.spotsText, isFilling && styles.spotsTextFilling]}>
+                  {item.current_players || 0}/{item.max_players}
+                </Text>
+              </View>
+              {isFilling && (
+                <Text style={styles.fillingText}>{t('home.filling_fast')}</Text>
+              )}
+              <View style={{ flex: 1 }} />
+              <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={18} color={COLORS.textTertiary} />
+            </View>
+          </GlassCard>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -165,83 +231,81 @@ export default function ExploreScreen() {
         colors={COLORS.backgroundGradient as any}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        end={{ x: 0.5, y: 1 }}
       />
 
       <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Header */}
         <View style={styles.header}>
           <View style={[isRTL ? { alignItems: 'flex-end' } : { alignItems: 'flex-start' }]}>
-            <Text style={[styles.headerTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t('explore.title')}</Text>
-            <Text style={[styles.headerSubtitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t('explore.subtitle')}</Text>
+            <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t('explore.title')}</Text>
+            <Text style={[styles.headerSubtitle, isRTL && { textAlign: 'right' }]}>{t('explore.subtitle')}</Text>
           </View>
 
+          {/* Search */}
           <View style={[styles.searchContainer, isRTL && { flexDirection: 'row-reverse' }]}>
-            <Ionicons name="search" size={20} color={COLORS.textTertiary} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
+            <View style={styles.searchIconContainer}>
+              <Ionicons name="search" size={18} color={COLORS.textTertiary} />
+            </View>
             <TextInput
-              style={[
-                styles.searchInput,
-                isRTL && { textAlign: 'right' }
-              ]}
+              style={[styles.searchInput, isRTL && { textAlign: 'right' }]}
               placeholder={t('explore.search_placeholder')}
               placeholderTextColor={COLORS.textTertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              selectionColor={COLORS.turfGreen}
+              selectionColor={COLORS.turfGreenLight}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} style={{ paddingLeft: 8 }}>
-                <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.3)" />
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+                <Ionicons name="close-circle" size={18} color={COLORS.textTertiary} />
               </TouchableOpacity>
             )}
           </View>
-
-
 
           {/* Filters */}
           <View style={styles.filtersContainer}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={styles.filterScroll}
-              contentContainerStyle={[
-                styles.filterContent,
-                isRTL && { flexDirection: 'row-reverse' },
-                { flexGrow: 1 }
-              ]}
+              contentContainerStyle={[styles.filterContent, isRTL && { flexDirection: 'row-reverse' }]}
             >
               <FilterChip label={t('explore.filter_all')} selected={selectedFormat === 'All'} onPress={() => setSelectedFormat('All')} />
               <FilterChip label="5v5" selected={selectedFormat === '5v5'} onPress={() => setSelectedFormat('5v5')} />
               <FilterChip label="7v7" selected={selectedFormat === '7v7'} onPress={() => setSelectedFormat('7v7')} />
               <FilterChip label="11v11" selected={selectedFormat === '11v11'} onPress={() => setSelectedFormat('11v11')} />
             </ScrollView>
+
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={styles.filterScroll}
-              contentContainerStyle={[
-                styles.filterContent,
-                isRTL && { flexDirection: 'row-reverse' },
-                { flexGrow: 1 }
-              ]}
+              contentContainerStyle={[styles.filterContent, isRTL && { flexDirection: 'row-reverse' }]}
             >
               <FilterChip label={t('explore.filter_all')} selected={selectedDate === 'All'} onPress={() => setSelectedDate('All')} />
               <FilterChip label={t('explore.filter_today')} selected={selectedDate === 'Today'} onPress={() => setSelectedDate('Today')} />
               <FilterChip label={t('explore.filter_tomorrow')} selected={selectedDate === 'Tomorrow'} onPress={() => setSelectedDate('Tomorrow')} />
             </ScrollView>
 
-            {/* City Filter */}
-            <View style={{ marginTop: 8, paddingHorizontal: isRTL ? 0 : 20, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-              <CityDropdown
-                options={uniqueCities}
-                selectedOption={selectedCity}
-                onSelect={setSelectedCity}
-                label={t('explore.filter_city')}
-              />
-            </View>
-
+            {uniqueCities.length > 0 && (
+              <View style={[styles.cityFilterContainer, isRTL && { alignItems: 'flex-end' }]}>
+                <CityDropdown
+                  options={uniqueCities}
+                  selectedOption={selectedCity}
+                  onSelect={setSelectedCity}
+                  label={t('explore.filter_city')}
+                />
+              </View>
+            )}
           </View>
 
+          {/* Results count */}
+          <View style={[styles.resultsRow, isRTL && { flexDirection: 'row-reverse' }]}>
+            <Text style={styles.resultsCount}>
+              {filteredGames.length} {filteredGames.length === 1 ? t('explore.game_found') : t('explore.games_found')}
+            </Text>
+          </View>
         </View>
+
+        {/* Content */}
         {loading ? (
           <LoadingState />
         ) : (
@@ -249,55 +313,19 @@ export default function ExploreScreen() {
             data={filteredGames}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accentOrange} />
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={COLORS.turfGreenLight}
+                colors={[COLORS.turfGreen]}
+              />
             }
-            renderItem={({ item, index }) => (
-              <Animated.View entering={FadeInDown.delay(index * 100).springify()}>
-                <TouchableOpacity onPress={() => router.push(`/game/${item.id}`)}>
-                  <GlassCard style={styles.gameCard} intensity={10}>
-                    <View style={[styles.gameCardContent, isRTL && { alignItems: 'flex-end' }]}>
-                      <View style={[styles.gameCardHeader, isRTL && { flexDirection: 'row-reverse' }]}>
-                        <View style={[styles.gameInfoLeft, isRTL && { alignItems: 'flex-end' }]}>
-                          <Text style={[styles.gameTitle, isRTL && { textAlign: 'right' }]}>{item.title}</Text>
-                          <View style={[styles.metaRow, isRTL && { flexDirection: 'row-reverse' }]}>
-                            <Ionicons name="calendar-outline" size={12} color={COLORS.textSecondary} />
-                            <Text style={styles.gameTime}>
-                              {new Date(item.start_time).toLocaleDateString()} • {new Date(item.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </Text>
-                          </View>
-                          {item.address && (
-                            <View style={[styles.metaRow, isRTL && { flexDirection: 'row-reverse' }, { marginTop: 4 }]}>
-                              <Ionicons name="location-outline" size={12} color={COLORS.textSecondary} />
-                              <Text style={styles.gameTime} numberOfLines={1}>{item.address}</Text>
-                            </View>
-                          )}
-                        </View>
-                        <View style={styles.formatBadge}>
-                          <Text style={styles.formatText}>{item.format}</Text>
-                        </View>
-                      </View>
-
-                      <Text style={[styles.gameDescription, isRTL && { textAlign: 'right' }]} numberOfLines={1}>{item.description}</Text>
-
-                      <View style={[styles.gameFooter, isRTL && { flexDirection: 'row-reverse' }]}>
-                        <View style={[styles.spotsContainer, isRTL && { flexDirection: 'row-reverse' }]}>
-                          <Ionicons name="people" size={16} color={COLORS.turfGreen} />
-                          <Text style={[styles.spotsText, isRTL ? { marginRight: 6 } : { marginLeft: 6 }]}>
-                            {item.max_players} {t('explore.spots_total')}
-                          </Text>
-                        </View>
-                        <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={COLORS.textSecondary} />
-                      </View>
-                    </View>
-                  </GlassCard>
-
-                </TouchableOpacity>
-              </Animated.View>
-            )}
+            renderItem={renderGameCard}
             ListEmptyComponent={
               <EmptyState
-                icon="football-outline"
+                icon="search-outline"
                 title={t('common.no_results')}
                 message={t('explore.try_changing_filters')}
               />
@@ -305,7 +333,7 @@ export default function ExploreScreen() {
           />
         )}
       </SafeAreaView>
-    </View >
+    </View>
   );
 }
 
@@ -318,109 +346,103 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: SPACING.m,
-    paddingTop: SPACING.l,
-    paddingBottom: SPACING.s,
+    paddingHorizontal: SPACING.l,
+    paddingTop: SPACING.m,
   },
   headerTitle: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: 'white',
     fontFamily: FONTS.heading,
-    marginBottom: 4,
+    letterSpacing: 0.5,
   },
   headerSubtitle: {
     color: COLORS.textSecondary,
-    marginBottom: SPACING.l,
+    fontSize: 14,
     fontFamily: FONTS.body,
+    marginTop: 2,
+    marginBottom: SPACING.m,
   },
   searchContainer: {
-    height: 56,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 28,
+    height: 50,
+    backgroundColor: COLORS.inputBackground,
+    borderRadius: BORDER_RADIUS.m,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: SPACING.l,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    width: '100%',
+    borderColor: COLORS.inputBorder,
+    marginBottom: SPACING.m,
   },
-
-
-
-
+  searchIconContainer: {
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   searchInput: {
     flex: 1,
     height: '100%',
-    fontSize: 16,
+    fontSize: 15,
     color: 'white',
     fontFamily: FONTS.body,
-    paddingVertical: 0,
   },
-
+  clearButton: {
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   filtersContainer: {
-    width: '100%',
-  },
-  filterScroll: {
     marginBottom: SPACING.s,
-    width: '100%',
   },
   filterContent: {
-    paddingHorizontal: SPACING.m,
     gap: SPACING.s,
-    paddingVertical: SPACING.s,
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingVertical: SPACING.xs,
   },
-
   filterChip: {
-    paddingHorizontal: 16,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: SPACING.m,
+    height: 34,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.inputBackground,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: COLORS.inputBorder,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
-
   filterChipSelected: {
-    backgroundColor: COLORS.turfGreen,
     borderColor: COLORS.turfGreen,
   },
   filterChipText: {
     color: COLORS.textSecondary,
     fontWeight: '600',
     fontSize: 13,
+    fontFamily: FONTS.body,
   },
   filterChipTextSelected: {
     color: 'white',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  cityFilterContainer: {
+    marginTop: SPACING.s,
   },
-  listContent: {
-    padding: SPACING.m,
-    paddingBottom: 100,
-  },
-  gameCard: {
-    borderRadius: BORDER_RADIUS.l,
-    marginBottom: SPACING.m,
-    overflow: 'hidden',
-  },
-  gameCardContent: {
-    padding: SPACING.m,
-  },
-  metaRow: {
+  resultsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    marginTop: SPACING.s,
+    marginBottom: SPACING.xs,
   },
-
+  resultsCount: {
+    color: COLORS.textTertiary,
+    fontSize: 12,
+    fontFamily: FONTS.body,
+  },
+  listContent: {
+    paddingHorizontal: SPACING.m,
+    paddingTop: SPACING.s,
+    paddingBottom: 120,
+  },
+  gameCard: {
+    marginBottom: SPACING.m,
+    padding: SPACING.m,
+  },
   gameCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -429,72 +451,105 @@ const styles = StyleSheet.create({
   },
   gameInfoLeft: {
     flex: 1,
+    marginRight: SPACING.m,
   },
   gameTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '700',
     color: 'white',
-    marginBottom: 4,
     fontFamily: FONTS.heading,
+    marginBottom: SPACING.xs,
   },
-  gameTime: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+    marginTop: SPACING.xs,
+  },
+  metaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: COLORS.successLight,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.xs,
+  },
+  metaText: {
+    fontSize: 10,
+    color: COLORS.turfGreenLight,
+    fontWeight: '600',
+    fontFamily: FONTS.body,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: SPACING.xs,
+  },
+  locationText: {
+    fontSize: 11,
+    color: COLORS.textTertiary,
+    fontFamily: FONTS.body,
   },
   formatBadge: {
-    backgroundColor: 'transparent',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 0,
-    borderColor: 'transparent',
-    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 168, 107, 0.12)',
+    paddingHorizontal: SPACING.s,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.s,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 168, 107, 0.25)',
   },
   formatText: {
-    color: '#4AAF57',
-    fontWeight: 'bold',
+    color: COLORS.turfGreenLight,
     fontSize: 11,
+    fontWeight: '700',
+    fontFamily: FONTS.body,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-
-
-
   gameDescription: {
+    fontSize: 13,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.m,
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: FONTS.body,
+    lineHeight: 18,
+    marginBottom: SPACING.s,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    marginVertical: SPACING.s,
   },
   gameFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: SPACING.s,
+    gap: SPACING.s,
   },
-  spotsContainer: {
+  spotsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.successLight,
+    paddingHorizontal: SPACING.s,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.xs,
+  },
+  spotsBadgeFilling: {
+    backgroundColor: COLORS.warningLight,
   },
   spotsText: {
-    color: COLORS.textSecondary,
-    marginLeft: 6,
-    fontSize: 12,
+    color: COLORS.turfGreenLight,
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: FONTS.body,
+  },
+  spotsTextFilling: {
+    color: COLORS.accentOrange,
+  },
+  fillingText: {
+    color: COLORS.accentOrange,
+    fontSize: 10,
     fontWeight: '600',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    marginTop: 48,
-  },
-  emptyText: {
-    color: COLORS.textSecondary,
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: SPACING.m,
-  },
-  emptySubtext: {
-    color: COLORS.textTertiary,
-    fontSize: 14,
-    marginTop: 8,
+    fontFamily: FONTS.body,
   },
 });
