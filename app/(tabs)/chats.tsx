@@ -59,7 +59,7 @@ export default function ChatsScreen() {
         if (!session?.user) return;
 
         const { data, error } = await supabase
-            .from('participants')
+            .from('game_participants')
             .select(`
                 game_id,
                 games:game_id (

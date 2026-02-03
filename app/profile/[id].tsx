@@ -42,7 +42,7 @@ export default function PublicProfileScreen() {
         }
 
         const { data: participations, error: partError } = await supabase
-            .from('participants')
+            .from('game_participants')
             .select('game_id, games(*)')
             .eq('user_id', id);
 

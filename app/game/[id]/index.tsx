@@ -85,7 +85,7 @@ export default function GameDetailScreen() {
         setGame(gameData as any);
 
         const { data: partData, error: partError } = await supabase
-            .from('participants')
+            .from('game_participants')
             .select('*, profiles(*)')
             .eq('game_id', id);
 
@@ -145,7 +145,7 @@ export default function GameDetailScreen() {
 
         const status = spotsLeft > 0 ? 'joined' : 'waitlist';
 
-        const { error } = await supabase.from('participants').insert({
+        const { error } = await supabase.from('game_participants').insert({
             game_id: id,
             user_id: session.user.id,
             status: status,
@@ -169,7 +169,7 @@ export default function GameDetailScreen() {
         setJoining(true);
 
         const { error } = await supabase
-            .from('participants')
+            .from('game_participants')
             .delete()
             .eq('game_id', id)
             .eq('user_id', session.user.id);
@@ -295,7 +295,7 @@ export default function GameDetailScreen() {
         }
 
         const { error } = await supabase
-            .from('participants')
+            .from('game_participants')
             .update({ lineup_position_id: positionId })
             .eq('game_id', id)
             .eq('user_id', session.user.id);

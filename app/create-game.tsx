@@ -149,7 +149,7 @@ export default function CreateGameScreen() {
 
             if (gameError) throw gameError;
 
-            await supabase.from('participants').insert({
+            await supabase.from('game_participants').insert({
                 game_id: gameData.id,
                 user_id: user.id,
                 status: 'joined',
