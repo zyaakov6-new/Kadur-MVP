@@ -63,30 +63,51 @@ export default function HomeScreen() {
   const checkProfile = async () => {
     if (!session?.user) return;
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', session.user.id)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .maybeSingle();
 
-    if (!error && !data) {
-      router.replace('/(auth)/profile_setup');
+      // Handle schema cache error - skip profile check if table doesn't exist
+      if (error?.code === 'PGRST205' || error?.message?.includes('schema cache')) {
+        console.log('Profiles table not ready, skipping check');
+        return;
+      }
+
+      if (!error && !data) {
+        router.replace('/(auth)/profile_setup');
+      }
+    } catch (err) {
+      console.error('Profile check error:', err);
     }
   };
 
   const fetchGames = async () => {
-    const { data, error } = await supabase
-      .from('games')
-      .select('*')
-      .eq('status', 'open')
-      .gt('start_time', new Date().toISOString())
-      .order('start_time', { ascending: true })
-      .limit(20);
+    try {
+      const { data, error } = await supabase
+        .from('games')
+        .select('*')
+        .eq('status', 'open')
+        .gt('start_time', new Date().toISOString())
+        .order('start_time', { ascending: true })
+        .limit(20);
 
-    if (error) {
-      console.error(error);
-    } else {
-      setGames(data as any);
+      if (error) {
+        // Handle schema cache error or recursion error
+        if (error.code === 'PGRST205' || error.code === '42P17' || error.message?.includes('schema cache') || error.message?.includes('recursion')) {
+          console.log('Games table not ready or policy issue:', error.code);
+          setGames([]);
+        } else {
+          console.error('Error fetching games:', error);
+        }
+      } else {
+        setGames(data as any);
+      }
+    } catch (err) {
+      console.error('Games fetch error:', err);
+      setGames([]);
     }
     setLoading(false);
     setRefreshing(false);
@@ -105,7 +126,7 @@ export default function HomeScreen() {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return 'היום 🔥';
+      return 'היום';
     } else if (date.toDateString() === tomorrow.toDateString()) {
       return 'מחר';
     }
@@ -210,7 +231,7 @@ export default function HomeScreen() {
                 </Text>
               </View>
               {isFilling && !isFull && (
-                <Text style={styles.fillingText}>⚡ ממלא מהר!</Text>
+                <Text style={styles.fillingText}>ממלא מהר</Text>
               )}
               {isFull && (
                 <Text style={styles.fullText}>מלא</Text>
@@ -236,7 +257,7 @@ export default function HomeScreen() {
           <Ionicons name="football" size={48} color="white" />
         </LinearGradient>
       </View>
-      <Text style={styles.emptyTitle}>אין משחקים עדיין 😢</Text>
+      <Text style={styles.emptyTitle}>אין משחקים עדיין</Text>
       <Text style={styles.emptyMessage}>
         היו הראשונים ליצור משחק באזור שלכם!
       </Text>
@@ -291,7 +312,7 @@ export default function HomeScreen() {
         <Animated.View entering={FadeInUp.duration(500)} style={styles.header}>
           <View style={styles.headerTop}>
             <View>
-              <Text style={styles.greeting}>היי! 👋</Text>
+              <Text style={styles.greeting}>שלום</Text>
               <Text style={styles.headerTitle}>כדור</Text>
             </View>
             <TouchableOpacity
@@ -342,7 +363,6 @@ export default function HomeScreen() {
           <Animated.View entering={FadeIn.delay(200)} style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionTitle}>משחקים קרובים</Text>
-              <Text style={styles.sectionEmoji}>⚽</Text>
             </View>
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/explore')}

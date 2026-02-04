@@ -10,7 +10,6 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { FeedbackModal } from '../../components/ui/FeedbackModal';
 import * as Haptics from 'expo-haptics';
 
-// Vibrant color palette matching the app
 const COLORS = {
     primary: '#00D26A',
     primaryDark: '#00A855',
@@ -65,7 +64,7 @@ export default function ProfileSetupScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             setModalConfig({
                 visible: true,
-                title: 'שגיאה',
+                title: 'שדות חסרים',
                 message: 'נא למלא שם מלא ועיר',
                 type: 'error',
                 onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
@@ -75,7 +74,7 @@ export default function ProfileSetupScreen() {
         if (!session?.user) {
             setModalConfig({
                 visible: true,
-                title: 'שגיאה',
+                title: 'שגיאת התחברות',
                 message: 'לא נמצאה התחברות פעילה. נסו להתחבר מחדש.',
                 type: 'error',
                 onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
@@ -103,15 +102,15 @@ export default function ProfileSetupScreen() {
             const { error } = await Promise.race([upsertPromise, timeoutPromise]);
 
             if (error) {
-                // Check if it's a database setup issue
-                const isDbIssue = error.message?.includes('profiles') || error.message?.includes('schema');
+                const isDbIssue = error.message?.includes('profiles') ||
+                                  error.message?.includes('schema') ||
+                                  error.message?.includes('PGRST');
                 if (isDbIssue) {
-                    // Still let them continue if DB isn't ready
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setModalConfig({
                         visible: true,
-                        title: 'ממשיכים!',
-                        message: 'הפרופיל יישמר כשהמערכת תהיה מוכנה. בואו נשחק!',
+                        title: 'ממשיכים',
+                        message: 'הפרופיל יישמר כשהמערכת תהיה מוכנה',
                         type: 'success',
                         onClose: () => {
                             setModalConfig(prev => ({ ...prev, visible: false }));
@@ -133,8 +132,8 @@ export default function ProfileSetupScreen() {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 setModalConfig({
                     visible: true,
-                    title: 'מעולה! 🎉',
-                    message: 'הפרופיל נשמר בהצלחה. בואו נשחק!',
+                    title: 'הפרופיל נשמר',
+                    message: 'הפרופיל נשמר בהצלחה',
                     type: 'success',
                     onClose: () => {
                         setModalConfig(prev => ({ ...prev, visible: false }));
@@ -156,7 +155,6 @@ export default function ProfileSetupScreen() {
                 end={{ x: 1, y: 1 }}
             />
 
-            {/* Decorative glow orbs */}
             <View style={[styles.glowOrb, styles.glowOrb1]} />
             <View style={[styles.glowOrb, styles.glowOrb2]} />
             <View style={[styles.glowOrb, styles.glowOrb3]} />
@@ -167,21 +165,19 @@ export default function ProfileSetupScreen() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >
-                    {/* Header */}
                     <Animated.View entering={FadeIn.duration(600)} style={styles.header}>
                         <View style={styles.iconContainer}>
                             <LinearGradient
                                 colors={[COLORS.primary, COLORS.primaryDark]}
                                 style={styles.iconGradient}
                             >
-                                <Text style={styles.iconEmoji}>⚽</Text>
+                                <Ionicons name="football" size={36} color={COLORS.bgDark} />
                             </LinearGradient>
                         </View>
-                        <Text style={styles.title}>בואו נכיר! 👋</Text>
-                        <Text style={styles.subtitle}>ספרו לנו קצת עליכם לפני שמתחילים</Text>
+                        <Text style={styles.title}>השלמת פרופיל</Text>
+                        <Text style={styles.subtitle}>ספרו לנו קצת עליכם</Text>
                     </Animated.View>
 
-                    {/* Form Card */}
                     <Animated.View
                         entering={FadeInDown.delay(200).duration(500)}
                         style={styles.formCard}
@@ -193,14 +189,13 @@ export default function ProfileSetupScreen() {
                             end={{ x: 1, y: 1 }}
                         />
 
-                        {/* Full Name Input */}
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>שם מלא *</Text>
+                            <Text style={styles.label}>שם מלא</Text>
                             <View style={styles.inputWrapper}>
                                 <Ionicons name="person-outline" size={20} color={COLORS.primary} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="איך קוראים לך?"
+                                    placeholder="הזינו את שמכם"
                                     placeholderTextColor={COLORS.textMuted}
                                     value={fullName}
                                     onChangeText={setFullName}
@@ -209,14 +204,13 @@ export default function ProfileSetupScreen() {
                             </View>
                         </View>
 
-                        {/* City Input */}
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>עיר *</Text>
+                            <Text style={styles.label}>עיר</Text>
                             <View style={styles.inputWrapper}>
                                 <Ionicons name="location-outline" size={20} color={COLORS.accentOrange} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="איפה אתם גרים?"
+                                    placeholder="באיזו עיר אתם גרים?"
                                     placeholderTextColor={COLORS.textMuted}
                                     value={city}
                                     onChangeText={setCity}
@@ -225,14 +219,13 @@ export default function ProfileSetupScreen() {
                             </View>
                         </View>
 
-                        {/* Position Selection */}
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>עמדה מועדפת</Text>
                             <View style={styles.positionsGrid}>
                                 {positions.map((pos, index) => (
                                     <Animated.View
                                         key={pos.id}
-                                        entering={FadeInDown.delay(300 + index * 100).duration(400)}
+                                        entering={FadeInDown.delay(300 + index * 80).duration(400)}
                                     >
                                         <TouchableOpacity
                                             style={[
@@ -270,7 +263,6 @@ export default function ProfileSetupScreen() {
                             </View>
                         </View>
 
-                        {/* Submit Button */}
                         <TouchableOpacity
                             style={[styles.submitButton, loading && styles.submitButtonDisabled]}
                             onPress={handleSave}
@@ -287,8 +279,8 @@ export default function ProfileSetupScreen() {
                                     <Text style={styles.submitText}>שומר...</Text>
                                 ) : (
                                     <>
-                                        <Ionicons name="football" size={24} color={COLORS.bgDark} style={{ marginLeft: 8 }} />
-                                        <Text style={styles.submitText}>בואו נשחק!</Text>
+                                        <Ionicons name="arrow-back" size={20} color={COLORS.bgDark} style={{ marginLeft: 8 }} />
+                                        <Text style={styles.submitText}>המשך</Text>
                                     </>
                                 )}
                             </LinearGradient>
@@ -305,8 +297,7 @@ export default function ProfileSetupScreen() {
                 title={modalConfig.title}
                 message={modalConfig.message}
                 type={modalConfig.type}
-                buttonText={modalConfig.type === 'success' ? 'יאללה!' : 'הבנתי'}
-                icon={modalConfig.type === 'success' ? "football" : undefined}
+                buttonText="אישור"
             />
         </View>
     );
@@ -370,11 +361,8 @@ const styles = StyleSheet.create({
         shadowRadius: 16,
         elevation: 10,
     },
-    iconEmoji: {
-        fontSize: 40,
-    },
     title: {
-        fontSize: 32,
+        fontSize: 28,
         fontWeight: '800',
         color: COLORS.textPrimary,
         marginBottom: 8,

@@ -268,7 +268,7 @@ export default function LoginScreen() {
                     } else {
                         setModalConfig({
                             visible: true,
-                            title: 'נרשמת בהצלחה! 🎉',
+                            title: 'נרשמת בהצלחה',
                             message: 'שלחנו קישור אימות לאימייל שלך.',
                             type: 'success',
                             onClose: () => {
@@ -371,7 +371,7 @@ export default function LoginScreen() {
 
                         <Text style={styles.appName}>כדור</Text>
                         <Text style={styles.tagline}>
-                            {isSignUp ? 'הצטרפו למשחק ⚡' : 'בואו נשחק! 🔥'}
+                            {isSignUp ? 'הצטרפו למשחק' : 'מצאו משחקים באיזור שלכם'}
                         </Text>
                     </Animated.View>
 
@@ -492,7 +492,7 @@ export default function LoginScreen() {
                                 end={{ x: 1, y: 0 }}
                             >
                                 {loading ? (
-                                    <Text style={styles.submitText}>רגע... ⚽</Text>
+                                    <Text style={styles.submitText}>מתחבר...</Text>
                                 ) : (
                                     <>
                                         <Text style={styles.submitText}>

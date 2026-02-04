@@ -218,7 +218,7 @@ export default function CreateGameScreen() {
 
     const renderHeader = () => (
         <View style={styles.headerContent}>
-            <Text style={styles.screenTitle}>יצירת משחק חדש ⚽</Text>
+            <Text style={styles.screenTitle}>יצירת משחק חדש</Text>
             <Text style={styles.screenSubtitle}>בחרו מיקום, תאריך וזמן</Text>
 
             <View style={styles.searchPillWrapper}>
@@ -501,7 +501,7 @@ export default function CreateGameScreen() {
                     setShowSuccessModal(false);
                     router.back();
                 }}
-                title="נוצר בהצלחה! 🎉"
+                title="המשחק נוצר בהצלחה"
                 message="המשחק נוצר והוא מוכן לשחקנים"
                 buttonText="יאללה!"
             />

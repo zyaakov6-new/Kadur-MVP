@@ -61,26 +61,56 @@ export default function ProfileScreen() {
 
   const fetchProfile = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session?.user.id)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session?.user.id)
+        .maybeSingle();
 
-    if (error) {
-      console.error(error);
-    } else {
-      setProfile(data as any);
+      if (error) {
+        // Handle schema cache error gracefully
+        if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+          console.log('Profile table not ready yet, using defaults');
+          setProfile({
+            id: session?.user.id || '',
+            full_name: session?.user.email?.split('@')[0] || 'שחקן',
+            city: '',
+            stats: { goals: 0, assists: 0, mvps: 0 },
+          } as any);
+        } else {
+          console.error('Error fetching profile:', error);
+        }
+      } else {
+        setProfile(data as any);
+      }
+    } catch (err) {
+      console.error('Profile fetch error:', err);
+      // Set default profile on error
+      setProfile({
+        id: session?.user.id || '',
+        full_name: session?.user.email?.split('@')[0] || 'שחקן',
+        city: '',
+        stats: { goals: 0, assists: 0, mvps: 0 },
+      } as any);
     }
 
-    const { data: participations, error: partError } = await supabase
-      .from('game_participants')
-      .select('game_id, games(*)')
-      .eq('user_id', session?.user.id);
+    try {
+      const { data: participations, error: partError } = await supabase
+        .from('game_participants')
+        .select('game_id, games(*)')
+        .eq('user_id', session?.user.id);
 
-    if (!partError && participations) {
-      const games = participations.map((p: any) => p.games);
-      setHistory(games);
+      if (!partError && participations) {
+        const games = participations.map((p: any) => p.games).filter(Boolean);
+        setHistory(games);
+      } else if (partError?.code === 'PGRST205' || partError?.message?.includes('schema cache')) {
+        console.log('Game participants table not ready yet');
+        setHistory([]);
+      }
+    } catch (err) {
+      console.error('History fetch error:', err);
+      setHistory([]);
     }
 
     setLoading(false);
@@ -121,7 +151,7 @@ export default function ProfileScreen() {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return 'היום 🔥';
+      return 'היום';
     } else if (date.toDateString() === tomorrow.toDateString()) {
       return 'מחר';
     }
@@ -148,7 +178,7 @@ export default function ProfileScreen() {
         >
           {/* Header */}
           <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
-            <Text style={styles.headerTitle}>פרופיל 👤</Text>
+            <Text style={styles.headerTitle}>פרופיל</Text>
             <TouchableOpacity
               style={styles.settingsButton}
               onPress={() => {
@@ -225,7 +255,7 @@ export default function ProfileScreen() {
 
           {/* Games Section */}
           <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.section}>
-            <Text style={styles.sectionTitle}>המשחקים שלי ⚽</Text>
+            <Text style={styles.sectionTitle}>המשחקים שלי</Text>
 
             {/* Tabs */}
             <View style={styles.tabsContainer}>
@@ -246,7 +276,7 @@ export default function ProfileScreen() {
                   />
                 )}
                 <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>
-                  קרובים ⚡
+                  קרובים
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity

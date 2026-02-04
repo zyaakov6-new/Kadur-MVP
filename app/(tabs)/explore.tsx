@@ -8,6 +8,7 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -18,29 +19,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-// Vibrant color palette
 const COLORS = {
   primary: '#00D26A',
   primaryDark: '#00A855',
   primaryLight: '#00E676',
-
   bgDark: '#0A1A14',
   bgMid: '#0D2818',
   bgLight: '#14332A',
-
   accent: '#00FFB3',
   accentOrange: '#FF6B35',
   accentPurple: '#A855F7',
   accentBlue: '#38BDF8',
-
   textPrimary: '#FFFFFF',
   textSecondary: 'rgba(255, 255, 255, 0.7)',
   textMuted: 'rgba(255, 255, 255, 0.5)',
-
   cardBg: 'rgba(255, 255, 255, 0.08)',
   cardBorder: 'rgba(255, 255, 255, 0.12)',
   inputBg: 'rgba(255, 255, 255, 0.06)',
-
   error: '#FF5252',
   warning: '#FF9800',
 };
@@ -85,12 +80,19 @@ export default function ExploreScreen() {
         .order('start_time', { ascending: true });
 
       if (error) {
-        console.error('Error fetching games:', error);
+        // Handle schema cache error or recursion error gracefully
+        if (error.code === 'PGRST205' || error.code === '42P17' || error.message?.includes('schema cache') || error.message?.includes('recursion')) {
+          console.log('Games table not ready or policy issue:', error.code);
+          setGames([]);
+        } else {
+          console.error('Error fetching games:', error);
+        }
       } else {
         setGames(data as any);
       }
     } catch (err) {
       console.error('Fetch games error:', err);
+      setGames([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -200,7 +202,6 @@ export default function ExploreScreen() {
             end={{ x: 1, y: 1 }}
           />
 
-          {/* Header Row */}
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleArea}>
               <View style={styles.titleRow}>
@@ -236,7 +237,6 @@ export default function ExploreScreen() {
             </View>
           </View>
 
-          {/* Info Row */}
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
               <Ionicons name="calendar" size={16} color={COLORS.accentBlue} />
@@ -265,7 +265,6 @@ export default function ExploreScreen() {
             </View>
           </View>
 
-          {/* Footer */}
           <View style={styles.cardFooter}>
             <Text style={styles.joinHint}>
               {isFull ? 'המשחק מלא' : isFilling ? `נשארו ${spotsLeft} מקומות` : 'לחצו להצטרפות'}
@@ -286,7 +285,7 @@ export default function ExploreScreen() {
       <Text style={styles.emptyMessage}>
         {searchQuery || selectedFormat !== 'הכל' || selectedDate !== 'הכל'
           ? 'נסו לשנות את הפילטרים'
-          : 'היו הראשונים ליצור משחק חדש!'}
+          : 'היו הראשונים ליצור משחק חדש'}
       </Text>
     </View>
   );
@@ -304,11 +303,9 @@ export default function ExploreScreen() {
       <View style={[styles.glowOrb, styles.glowOrb2]} />
 
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Compact Header */}
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
           <Text style={styles.headerTitle}>חיפוש משחקים</Text>
 
-          {/* Search Bar */}
           <View style={styles.searchContainer}>
             <TextInput
               style={styles.searchInput}
@@ -329,8 +326,13 @@ export default function ExploreScreen() {
             )}
           </View>
 
-          {/* Combined Filters Row */}
-          <View style={styles.filtersContainer}>
+          {/* Scrollable Filters */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filtersScrollContent}
+            style={styles.filtersScroll}
+          >
             <View style={styles.filterGroup}>
               <FilterChip label="הכל" selected={selectedFormat === 'הכל'} onPress={() => setSelectedFormat('הכל')} />
               <FilterChip label="5v5" selected={selectedFormat === '5v5'} onPress={() => setSelectedFormat('5v5')} />
@@ -342,16 +344,15 @@ export default function ExploreScreen() {
               <FilterChip label="הכל" selected={selectedDate === 'הכל'} onPress={() => setSelectedDate('הכל')} />
               <FilterChip label="היום" selected={selectedDate === 'היום'} onPress={() => setSelectedDate('היום')} />
               <FilterChip label="מחר" selected={selectedDate === 'מחר'} onPress={() => setSelectedDate('מחר')} />
+              <FilterChip label="השבוע" selected={selectedDate === 'השבוע'} onPress={() => setSelectedDate('השבוע')} />
             </View>
-          </View>
+          </ScrollView>
 
-          {/* Results Count */}
           <Text style={styles.resultsCount}>
             {loading ? 'טוען...' : `${filteredGames.length} משחקים נמצאו`}
           </Text>
         </Animated.View>
 
-        {/* Games List */}
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
@@ -407,7 +408,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 16,
+    paddingBottom: 12,
   },
   headerTitle: {
     fontSize: 28,
@@ -440,10 +441,13 @@ const styles = StyleSheet.create({
   clearButton: {
     marginRight: 8,
   },
-  filtersContainer: {
+  filtersScroll: {
+    marginBottom: 12,
+  },
+  filtersScrollContent: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    marginBottom: 12,
+    paddingRight: 0,
   },
   filterGroup: {
     flexDirection: 'row-reverse',

@@ -180,7 +180,7 @@ export default function ChatsScreen() {
     } else if (minutes > 0) {
       return `לפני ${minutes} דקות`;
     } else {
-      return 'עכשיו 🔥';
+      return 'עכשיו';
     }
   };
 
@@ -254,7 +254,7 @@ export default function ChatsScreen() {
       <View style={styles.emptyIconContainer}>
         <Ionicons name="chatbubbles-outline" size={48} color={COLORS.textMuted} />
       </View>
-      <Text style={styles.emptyTitle}>אין צ'אטים עדיין 💬</Text>
+      <Text style={styles.emptyTitle}>אין צ'אטים עדיין</Text>
       <Text style={styles.emptyMessage}>
         הצטרפו למשחק כדי להתחיל לשוחח עם שחקנים אחרים
       </Text>
@@ -275,7 +275,7 @@ export default function ChatsScreen() {
 
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
-          <Text style={styles.headerTitle}>צ'אטים 💬</Text>
+          <Text style={styles.headerTitle}>צ'אטים</Text>
 
           {/* Search */}
           <View style={styles.searchContainer}>
@@ -315,7 +315,7 @@ export default function ChatsScreen() {
                 />
               )}
               <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>
-                פעילים ⚡
+                פעילים
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
