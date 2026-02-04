@@ -1,9 +1,10 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, Share, Alert, ViewStyle } from 'react-native';
+import React, { useState } from 'react';
+import { TouchableOpacity, Text, StyleSheet, Share, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, BORDER_RADIUS } from '../../constants/theme';
 import { useTranslation } from 'react-i18next';
+import { FeedbackModal, AlertState } from './FeedbackModal';
 
 interface ShareButtonProps {
     message: string;
@@ -14,6 +15,7 @@ interface ShareButtonProps {
 
 export const ShareButton: React.FC<ShareButtonProps> = ({ message, url, title = 'Share Game', style }) => {
     const { t } = useTranslation();
+    const [errorAlert, setErrorAlert] = useState<AlertState>({ visible: false, title: '', message: '' });
 
     const handleShare = async () => {
         try {
@@ -33,26 +35,42 @@ export const ShareButton: React.FC<ShareButtonProps> = ({ message, url, title = 
                 // dismissed
             }
         } catch (error: any) {
-            Alert.alert(error.message);
+            setErrorAlert({
+                visible: true,
+                title: t('common.error'),
+                message: error.message,
+                type: 'error'
+            });
         }
     };
 
     return (
-        <TouchableOpacity
-            onPress={handleShare}
-            style={[styles.container, style]}
-            activeOpacity={0.8}
-        >
-            <LinearGradient
-                colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
-                style={styles.gradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+        <>
+            <TouchableOpacity
+                onPress={handleShare}
+                style={[styles.container, style]}
+                activeOpacity={0.8}
             >
-                <Ionicons name="share-outline" size={18} color="white" style={styles.icon} />
-                <Text style={styles.text} numberOfLines={1} adjustsFontSizeToFit>{t('game.share')}</Text>
-            </LinearGradient>
-        </TouchableOpacity>
+                <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
+                    style={styles.gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                >
+                    <Ionicons name="share-outline" size={18} color="white" style={styles.icon} />
+                    <Text style={styles.text} numberOfLines={1} adjustsFontSizeToFit>{t('game.share')}</Text>
+                </LinearGradient>
+            </TouchableOpacity>
+
+            <FeedbackModal
+                visible={errorAlert.visible}
+                onClose={() => setErrorAlert({ ...errorAlert, visible: false })}
+                title={errorAlert.title}
+                message={errorAlert.message}
+                buttonText={t('common.ok')}
+                type={errorAlert.type || 'error'}
+            />
+        </>
     );
 };
 

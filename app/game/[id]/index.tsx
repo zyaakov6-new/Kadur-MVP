@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Image, StyleSheet, Dimensions, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, Dimensions, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 
 import { supabase } from '../../../lib/supabase';
@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { SoccerField } from '../../../components/game/SoccerField';
 import { LoadingState } from '../../../components/ui/LoadingState';
-import { FeedbackModal } from '../../../components/ui/FeedbackModal';
+import { FeedbackModal, AlertState } from '../../../components/ui/FeedbackModal';
 
 type Participant = {
     user_id: string;
@@ -49,6 +49,9 @@ export default function GameDetailScreen() {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [voteErrorModal, setVoteErrorModal] = useState(false);
     const [votedMvpTargetId, setVotedMvpTargetId] = useState<string | null>(null);
+    const [errorAlert, setErrorAlert] = useState<AlertState>({ visible: false, title: '', message: '' });
+    const [infoAlert, setInfoAlert] = useState<AlertState>({ visible: false, title: '', message: '' });
+    const [confirmAction, setConfirmAction] = useState<{ visible: boolean; title: string; message: string; onConfirm: () => void }>({ visible: false, title: '', message: '', onConfirm: () => {} });
     const confettiRef = React.useRef<ConfettiCannon>(null);
 
     const mapRef = React.useRef<MapView>(null);
@@ -77,8 +80,13 @@ export default function GameDetailScreen() {
 
         if (gameError) {
             setLoading(false);
-            Alert.alert(t('common.error'), t('game.game_not_found'));
-            router.back();
+            setErrorAlert({
+                visible: true,
+                title: t('common.error'),
+                message: t('game.game_not_found'),
+                type: 'error'
+            });
+            setTimeout(() => router.back(), 1500);
             return;
         }
 
@@ -153,12 +161,22 @@ export default function GameDetailScreen() {
 
         setJoining(false);
         if (error) {
-            Alert.alert(t('common.error'), error.message);
+            setErrorAlert({
+                visible: true,
+                title: t('common.error'),
+                message: error.message,
+                type: 'error'
+            });
         } else {
             if (status === 'joined') {
                 confettiRef.current?.start();
             } else {
-                Alert.alert(t('game.waitlist'), t('game.success_joined_waitlist'));
+                setInfoAlert({
+                    visible: true,
+                    title: t('game.waitlist'),
+                    message: t('game.success_joined_waitlist'),
+                    type: 'info'
+                });
             }
             fetchGameDetails();
         }
@@ -176,7 +194,12 @@ export default function GameDetailScreen() {
 
         setJoining(false);
         if (error) {
-            Alert.alert(t('common.error'), error.message);
+            setErrorAlert({
+                visible: true,
+                title: t('common.error'),
+                message: error.message,
+                type: 'error'
+            });
         } else {
             fetchGameDetails();
         }
@@ -194,7 +217,12 @@ export default function GameDetailScreen() {
                 .eq('vote_type', 'rain');
 
             if (error) {
-                Alert.alert(t('common.error'), error.message);
+                setErrorAlert({
+                    visible: true,
+                    title: t('common.error'),
+                    message: error.message,
+                    type: 'error'
+                });
             } else {
                 setHasVotedRain(false);
                 setRainVotes((prev) => Math.max(0, prev - 1));
@@ -209,7 +237,12 @@ export default function GameDetailScreen() {
             });
 
             if (error) {
-                Alert.alert(t('common.error'), error.message);
+                setErrorAlert({
+                    visible: true,
+                    title: t('common.error'),
+                    message: error.message,
+                    type: 'error'
+                });
             } else {
                 setHasVotedRain(true);
                 setRainVotes((prev) => prev + 1);
@@ -240,7 +273,12 @@ export default function GameDetailScreen() {
                 // Revert if failed
                 setVotedMvpTargetId(previousId);
                 console.error('Error deleting vote:', error);
-                Alert.alert(t('common.error'), t('game.vote_error_title') + ": " + error.message);
+                setErrorAlert({
+                    visible: true,
+                    title: t('common.error'),
+                    message: t('game.vote_error_title') + ": " + error.message,
+                    type: 'error'
+                });
             } else {
                 setVoteFeedback(t('game.vote_cancelled_msg'));
                 setTimeout(() => setVoteFeedback(null), 3000);
@@ -270,7 +308,12 @@ export default function GameDetailScreen() {
             if (error.code === '23505' || error.message.includes('unique')) {
                 setVoteErrorModal(true);
             } else {
-                Alert.alert(t('common.error'), error.message);
+                setErrorAlert({
+                    visible: true,
+                    title: t('common.error'),
+                    message: error.message,
+                    type: 'error'
+                });
             }
         } else {
             setVotedMvpTargetId(targetId);
@@ -283,14 +326,24 @@ export default function GameDetailScreen() {
     const handlePickPosition = async (positionId: string) => {
         if (!session?.user) return;
         if (!isJoined) {
-            Alert.alert(t('common.error'), t('game.must_join_for_lineup'));
+            setErrorAlert({
+                visible: true,
+                title: t('common.error'),
+                message: t('game.must_join_for_lineup'),
+                type: 'warning'
+            });
             return;
         }
 
         // Check if taken
         const isTaken = participants.some(p => p.lineup_position_id === positionId && p.user_id !== session.user.id);
         if (isTaken) {
-            Alert.alert(t('common.error'), t('game.position_taken'));
+            setErrorAlert({
+                visible: true,
+                title: t('common.error'),
+                message: t('game.position_taken'),
+                type: 'warning'
+            });
             return;
         }
 
@@ -301,7 +354,12 @@ export default function GameDetailScreen() {
             .eq('user_id', session.user.id);
 
         if (error) {
-            Alert.alert(t('common.error'), error.message);
+            setErrorAlert({
+                visible: true,
+                title: t('common.error'),
+                message: error.message,
+                type: 'error'
+            });
         } else {
             fetchGameDetails();
         }
@@ -670,23 +728,33 @@ export default function GameDetailScreen() {
                     <PremiumButton
                         title={t('game.cancel_game_title')}
                         onPress={() => {
-                            Alert.alert(t('game.cancel_game_title'), t('game.cancel_game_confirm'), [
-                                { text: t('game.no'), style: 'cancel' },
-                                {
-                                    text: t('game.yes_cancel'),
-                                    style: 'destructive',
-                                    onPress: async () => {
-                                        setJoining(true);
-                                        const { error } = await supabase.from('games').update({ status: 'cancelled' }).eq('id', id);
-                                        setJoining(false);
-                                        if (error) Alert.alert(t('common.error'), error.message);
-                                        else {
-                                            Alert.alert(t('common.success'), t('game.game_cancelled_msg'));
-                                            router.back();
-                                        }
+                            setConfirmAction({
+                                visible: true,
+                                title: t('game.cancel_game_title'),
+                                message: t('game.cancel_game_confirm'),
+                                onConfirm: async () => {
+                                    setConfirmAction({ ...confirmAction, visible: false });
+                                    setJoining(true);
+                                    const { error } = await supabase.from('games').update({ status: 'cancelled' }).eq('id', id);
+                                    setJoining(false);
+                                    if (error) {
+                                        setErrorAlert({
+                                            visible: true,
+                                            title: t('common.error'),
+                                            message: error.message,
+                                            type: 'error'
+                                        });
+                                    } else {
+                                        setInfoAlert({
+                                            visible: true,
+                                            title: t('common.success'),
+                                            message: t('game.game_cancelled_msg'),
+                                            type: 'success'
+                                        });
+                                        setTimeout(() => router.back(), 1500);
                                     }
                                 }
-                            ]);
+                            });
                         }}
                         disabled={joining}
                         style={{ backgroundColor: '#ef4444' }}
@@ -731,6 +799,38 @@ export default function GameDetailScreen() {
                 message={t('game.vote_error_duplicate')}
                 buttonText={t('common.ok')}
                 type="error"
+            />
+
+            {/* Error Alert Modal */}
+            <FeedbackModal
+                visible={errorAlert.visible}
+                onClose={() => setErrorAlert({ ...errorAlert, visible: false })}
+                title={errorAlert.title}
+                message={errorAlert.message}
+                buttonText={t('common.ok')}
+                type={errorAlert.type || 'error'}
+            />
+
+            {/* Info Alert Modal */}
+            <FeedbackModal
+                visible={infoAlert.visible}
+                onClose={() => setInfoAlert({ ...infoAlert, visible: false })}
+                title={infoAlert.title}
+                message={infoAlert.message}
+                buttonText={t('common.ok')}
+                type={infoAlert.type || 'info'}
+            />
+
+            {/* Confirmation Modal */}
+            <FeedbackModal
+                visible={confirmAction.visible}
+                onClose={() => setConfirmAction({ ...confirmAction, visible: false })}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                buttonText={t('game.yes_cancel')}
+                type="warning"
+                secondaryButtonText={t('game.no')}
+                onSecondaryPress={() => setConfirmAction({ ...confirmAction, visible: false })}
             />
         </View >
     );

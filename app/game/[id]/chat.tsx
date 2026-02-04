@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Image, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Image, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -13,6 +13,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { LoadingState } from '../../../components/ui/LoadingState';
+import { FeedbackModal, AlertState } from '../../../components/ui/FeedbackModal';
 
 type Message = {
     id: string;
@@ -41,6 +42,7 @@ export default function ChatScreen() {
     const [inputText, setInputText] = useState('');
     const [loading, setLoading] = useState(true);
     const [game, setGame] = useState<GameDetail | null>(null);
+    const [errorAlert, setErrorAlert] = useState<AlertState>({ visible: false, title: '', message: '' });
     const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
@@ -162,7 +164,12 @@ export default function ChatScreen() {
             console.error('Send error:', error);
             setMessages((prev) => prev.filter(m => m.id !== tempId));
             setInputText(text);
-            Alert.alert(t('common.error'), t('chat.send_failed') || 'Failed to send message');
+            setErrorAlert({
+                visible: true,
+                title: t('common.error'),
+                message: t('chat.send_failed') || 'Failed to send message',
+                type: 'error'
+            });
         }
     };
 
@@ -310,6 +317,15 @@ export default function ChatScreen() {
                     </View>
                 </KeyboardAvoidingView>
             </SafeAreaView>
+
+            <FeedbackModal
+                visible={errorAlert.visible}
+                onClose={() => setErrorAlert({ ...errorAlert, visible: false })}
+                title={errorAlert.title}
+                message={errorAlert.message}
+                buttonText={t('common.ok')}
+                type={errorAlert.type || 'error'}
+            />
         </View>
     );
 }

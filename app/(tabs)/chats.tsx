@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   StyleSheet,
   TextInput,
   ActivityIndicator,
@@ -20,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { FeedbackModal, AlertState } from '../../components/ui/FeedbackModal';
 
 // Vibrant color palette
 const COLORS = {
@@ -55,6 +55,7 @@ export default function ChatsScreen() {
   const { session } = useAuth();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [confirmHide, setConfirmHide] = useState<{ visible: boolean; gameId: string | null }>({ visible: false, gameId: null });
 
   useFocusEffect(
     useCallback(() => {
@@ -124,22 +125,16 @@ export default function ChatsScreen() {
   };
 
   const handleHideChat = (gameId: string) => {
-    Alert.alert(
-      'הסתרת צ\'אט',
-      'האם להסתיר את הצ\'אט הזה?',
-      [
-        { text: 'ביטול', style: 'cancel' },
-        {
-          text: 'הסתר',
-          style: 'destructive',
-          onPress: async () => {
-            const newHidden = [...hiddenChats, gameId];
-            setHiddenChats(newHidden);
-            await AsyncStorage.setItem('hidden_chats', JSON.stringify(newHidden));
-          }
-        }
-      ]
-    );
+    setConfirmHide({ visible: true, gameId });
+  };
+
+  const confirmHideChat = async () => {
+    if (confirmHide.gameId) {
+      const newHidden = [...hiddenChats, confirmHide.gameId];
+      setHiddenChats(newHidden);
+      await AsyncStorage.setItem('hidden_chats', JSON.stringify(newHidden));
+    }
+    setConfirmHide({ visible: false, gameId: null });
   };
 
   const filteredGames = joinedGames.filter(game => {
@@ -364,6 +359,17 @@ export default function ChatsScreen() {
           />
         )}
       </SafeAreaView>
+
+      <FeedbackModal
+        visible={confirmHide.visible}
+        onClose={confirmHideChat}
+        title="הסתרת צ'אט"
+        message="האם להסתיר את הצ'אט הזה?"
+        buttonText="הסתר"
+        type="warning"
+        secondaryButtonText="ביטול"
+        onSecondaryPress={() => setConfirmHide({ visible: false, gameId: null })}
+      />
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, Keyboard, FlatList, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, Keyboard, FlatList } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -13,7 +13,7 @@ import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import * as Haptics from 'expo-haptics';
-import { FeedbackModal } from '../components/ui/FeedbackModal';
+import { FeedbackModal, AlertState } from '../components/ui/FeedbackModal';
 import { ActivityIndicator } from 'react-native';
 
 // Vibrant color palette matching the app
@@ -74,6 +74,7 @@ export default function CreateGameScreen() {
     const isManualSearch = useRef(false);
 
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [errorAlert, setErrorAlert] = useState<AlertState>({ visible: false, title: '', message: '' });
 
     const [location, setLocation] = useState({
         latitude: 32.0853,
@@ -145,7 +146,12 @@ export default function CreateGameScreen() {
 
     const handleCreate = async () => {
         if (!title || !description) {
-            Alert.alert('שגיאה', 'נא למלא כותרת ותיאור');
+            setErrorAlert({
+                visible: true,
+                title: 'שגיאה',
+                message: 'נא למלא כותרת ותיאור',
+                type: 'warning'
+            });
             return;
         }
 
@@ -183,7 +189,12 @@ export default function CreateGameScreen() {
         } catch (error: any) {
             console.error('Create game error:', error);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert('שגיאה', error.message);
+            setErrorAlert({
+                visible: true,
+                title: 'שגיאה',
+                message: error.message,
+                type: 'error'
+            });
         } finally {
             setLoading(false);
         }
@@ -504,6 +515,15 @@ export default function CreateGameScreen() {
                 title="המשחק נוצר בהצלחה"
                 message="המשחק נוצר והוא מוכן לשחקנים"
                 buttonText="יאללה!"
+            />
+
+            <FeedbackModal
+                visible={errorAlert.visible}
+                onClose={() => setErrorAlert({ ...errorAlert, visible: false })}
+                title={errorAlert.title}
+                message={errorAlert.message}
+                buttonText="אישור"
+                type={errorAlert.type || 'error'}
             />
         </View>
     );

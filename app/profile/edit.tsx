@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, StyleSheet, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,7 +17,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useImageUpload } from '../../hooks/useImageUpload';
 import { Image } from 'expo-image';
 import { LoadingState } from '../../components/ui/LoadingState';
-import { FeedbackModal } from '../../components/ui/FeedbackModal';
+import { FeedbackModal, AlertState } from '../../components/ui/FeedbackModal';
 
 export default function EditProfileScreen() {
     const { t } = useTranslation();
@@ -30,6 +30,7 @@ export default function EditProfileScreen() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [errorAlert, setErrorAlert] = useState<AlertState>({ visible: false, title: '', message: '' });
 
     const [fullName, setFullName] = useState('');
     const [position, setPosition] = useState('');
@@ -62,7 +63,12 @@ export default function EditProfileScreen() {
             }
         } catch (error) {
             console.error('Error fetching profile:', error);
-            Alert.alert(t('common.error'), 'Failed to load profile');
+            setErrorAlert({
+                visible: true,
+                title: t('common.error'),
+                message: t('profile_edit.error_load') || 'Failed to load profile',
+                type: 'error'
+            });
         } finally {
             setLoading(false);
         }
@@ -76,14 +82,24 @@ export default function EditProfileScreen() {
                 const publicUrl = await uploadImage(result.base64!, session.user.id);
                 setAvatarUrl(publicUrl);
             } catch (error) {
-                Alert.alert(t('common.error'), 'Failed to upload image');
+                setErrorAlert({
+                    visible: true,
+                    title: t('common.error'),
+                    message: t('profile_edit.error_upload_image') || 'Failed to upload image',
+                    type: 'error'
+                });
             }
         }
     };
 
     const handleSave = async () => {
         if (!fullName.trim()) {
-            Alert.alert(t('common.error'), t('create_game.error_fill_fields'));
+            setErrorAlert({
+                visible: true,
+                title: t('common.error'),
+                message: t('profile_edit.error_name_required') || 'Name is required',
+                type: 'warning'
+            });
             return;
         }
 
@@ -112,7 +128,12 @@ export default function EditProfileScreen() {
             }, 2000);
         } catch (error) {
             console.error('Error updating profile:', error);
-            Alert.alert(t('common.error'), 'Failed to update profile');
+            setErrorAlert({
+                visible: true,
+                title: t('common.error'),
+                message: t('profile_edit.error_update') || 'Failed to update profile',
+                type: 'error'
+            });
         } finally {
             setSaving(false);
         }
@@ -245,6 +266,15 @@ export default function EditProfileScreen() {
                 title={t('common.success')}
                 message={t('profile_edit.success_update')}
                 buttonText={t('common.done')}
+            />
+
+            <FeedbackModal
+                visible={errorAlert.visible}
+                onClose={() => setErrorAlert({ ...errorAlert, visible: false })}
+                title={errorAlert.title}
+                message={errorAlert.message}
+                buttonText={t('common.ok')}
+                type={errorAlert.type || 'error'}
             />
             <ConfettiCannon count={200} origin={{ x: -10, y: 0 }} autoStart={false} ref={confettiRef} fadeOut={true} />
         </View>
