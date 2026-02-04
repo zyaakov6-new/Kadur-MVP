@@ -1,466 +1,494 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert, StyleSheet, TextInput } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  StyleSheet,
+  TextInput,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Game } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
-import { GlassCard } from '../../components/ui/GlassCard';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTranslation } from 'react-i18next';
-import { useLanguage } from '../../contexts/LanguageContext';
-import { LoadingState } from '../../components/ui/LoadingState';
-import { EmptyState } from '../../components/ui/EmptyState';
 import * as Haptics from 'expo-haptics';
 
+// Apple-inspired color palette
+const COLORS = {
+  primary: '#34C759',
+  primaryLight: '#30D158',
+
+  background: '#FFFFFF',
+  backgroundSecondary: '#F2F2F7',
+
+  label: '#000000',
+  secondaryLabel: '#3C3C43',
+  tertiaryLabel: '#8E8E93',
+  quaternaryLabel: '#C7C7CC',
+
+  separator: '#E5E5EA',
+  systemGray6: '#F2F2F7',
+
+  blue: '#007AFF',
+  red: '#FF3B30',
+};
+
 export default function ChatsScreen() {
-    const { t } = useTranslation();
-    const { isRTL } = useLanguage();
-    const [joinedGames, setJoinedGames] = useState<Game[]>([]);
-    const [hiddenChats, setHiddenChats] = useState<string[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
-    const { session } = useAuth();
-    const router = useRouter();
-    const [searchQuery, setSearchQuery] = useState('');
+  const [joinedGames, setJoinedGames] = useState<Game[]>([]);
+  const [hiddenChats, setHiddenChats] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const { session } = useAuth();
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
 
-    useFocusEffect(
-        useCallback(() => {
-            if (session?.user) {
-                fetchJoinedGames();
-            }
-        }, [session])
-    );
-
-    useEffect(() => {
-        if (session?.user) {
-            fetchJoinedGames();
-            loadHiddenChats();
-        }
-    }, [session]);
-
-    const loadHiddenChats = async () => {
-        try {
-            const stored = await AsyncStorage.getItem('hidden_chats');
-            if (stored) {
-                setHiddenChats(JSON.parse(stored));
-            }
-        } catch (e) {
-            console.error('Failed to load hidden chats', e);
-        }
-    };
-
-    const fetchJoinedGames = async () => {
-        if (!session?.user) return;
-
-        const { data, error } = await supabase
-            .from('game_participants')
-            .select(`
-                game_id,
-                games:game_id (
-                    *,
-                    messages:messages (created_at)
-                )
-            `)
-            .eq('user_id', session.user.id)
-            .order('created_at', { foreignTable: 'games.messages', ascending: false })
-            .limit(1, { foreignTable: 'games.messages' });
-
-        if (error) {
-            console.error('Error fetching chats:', error);
-        } else {
-            const games = data.map((item: any) => {
-                const game = item.games;
-                const lastMessage = game.messages?.sort((a: any, b: any) =>
-                    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                )[0];
-                return {
-                    ...game,
-                    last_activity: lastMessage ? lastMessage.created_at : game.created_at
-                };
-            }).filter((g: any) => g !== null);
-            setJoinedGames(games);
-        }
-        setLoading(false);
-        setRefreshing(false);
-    };
-
-    const onRefresh = () => {
-        setRefreshing(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (session?.user) {
         fetchJoinedGames();
-    };
+      }
+    }, [session])
+  );
 
-    const handleDeleteChat = (gameId: string) => {
-        Alert.alert(
-            t('chats.hide_chat'),
-            t('chats.hide_chat_confirm'),
-            [
-                { text: t('common.cancel'), style: "cancel" },
-                {
-                    text: t('chats.hide_chat'),
-                    style: "destructive",
-                    onPress: async () => {
-                        const newHidden = [...hiddenChats, gameId];
-                        setHiddenChats(newHidden);
-                        await AsyncStorage.setItem('hidden_chats', JSON.stringify(newHidden));
-                    }
-                }
-            ]
-        );
-    };
+  useEffect(() => {
+    if (session?.user) {
+      fetchJoinedGames();
+      loadHiddenChats();
+    }
+  }, [session]);
 
-    const filteredGames = joinedGames.filter(game => {
-        if (hiddenChats.includes(game.id)) return false;
+  const loadHiddenChats = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('hidden_chats');
+      if (stored) {
+        setHiddenChats(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Failed to load hidden chats', e);
+    }
+  };
 
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            const titleMatch = game.title.toLowerCase().includes(query);
-            if (!titleMatch) return false;
+  const fetchJoinedGames = async () => {
+    if (!session?.user) return;
+
+    const { data, error } = await supabase
+      .from('game_participants')
+      .select(`
+        game_id,
+        games:game_id (
+          *,
+          messages:messages (created_at)
+        )
+      `)
+      .eq('user_id', session.user.id)
+      .order('created_at', { foreignTable: 'games.messages', ascending: false })
+      .limit(1, { foreignTable: 'games.messages' });
+
+    if (error) {
+      console.error('Error fetching chats:', error);
+    } else {
+      const games = data.map((item: any) => {
+        const game = item.games;
+        const lastMessage = game.messages?.sort((a: any, b: any) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )[0];
+        return {
+          ...game,
+          last_activity: lastMessage ? lastMessage.created_at : game.created_at
+        };
+      }).filter((g: any) => g !== null);
+      setJoinedGames(games);
+    }
+    setLoading(false);
+    setRefreshing(false);
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    fetchJoinedGames();
+  };
+
+  const handleHideChat = (gameId: string) => {
+    Alert.alert(
+      'הסתרת צ\'אט',
+      'האם להסתיר את הצ\'אט הזה?',
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'הסתר',
+          style: 'destructive',
+          onPress: async () => {
+            const newHidden = [...hiddenChats, gameId];
+            setHiddenChats(newHidden);
+            await AsyncStorage.setItem('hidden_chats', JSON.stringify(newHidden));
+          }
         }
-
-        const gameDate = new Date(game.start_time);
-        const now = new Date();
-
-        if (activeTab === 'upcoming') {
-            return gameDate > now;
-        } else {
-            return gameDate <= now;
-        }
-    }).sort((a, b) => {
-        const timeA = new Date((a as any).last_activity || a.created_at).getTime();
-        const timeB = new Date((b as any).last_activity || b.created_at).getTime();
-        return timeB - timeA;
-    });
-
-    const formatTime = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diff = now.getTime() - date.getTime();
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const days = Math.floor(hours / 24);
-
-        if (days > 0) {
-            return `${days}d`;
-        } else if (hours > 0) {
-            return `${hours}h`;
-        } else {
-            return date.toLocaleTimeString(isRTL ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' });
-        }
-    };
-
-    const renderChatItem = ({ item, index }: { item: Game; index: number }) => (
-        <Animated.View entering={FadeInDown.delay(index * 60).springify()}>
-            <TouchableOpacity
-                onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push(`/game/${item.id}/chat`);
-                }}
-                onLongPress={() => handleDeleteChat(item.id)}
-                activeOpacity={0.8}
-            >
-                <GlassCard style={styles.chatCard} variant="subtle" noPadding>
-                    <View style={[styles.chatItemContent, isRTL && { flexDirection: 'row-reverse' }]}>
-                        <View style={styles.avatarContainer}>
-                            <LinearGradient
-                                colors={[COLORS.turfGreenLight + '30', COLORS.turfGreen + '20']}
-                                style={styles.avatarGradient}
-                            >
-                                <Ionicons name="chatbubbles" size={22} color={COLORS.turfGreenLight} />
-                            </LinearGradient>
-                        </View>
-
-                        <View style={[styles.chatMainInfo, isRTL && { alignItems: 'flex-end', marginRight: SPACING.m, marginLeft: 0 }]}>
-                            <Text style={[styles.chatName, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
-                                {item.title}
-                            </Text>
-                            <View style={[styles.chatPreviewRow, isRTL && { flexDirection: 'row-reverse' }]}>
-                                <View style={[styles.formatMini, isRTL && { marginRight: 0, marginLeft: SPACING.xs }]}>
-                                    <Text style={styles.formatMiniText}>{item.format}</Text>
-                                </View>
-                                <Text style={styles.chatPreviewText} numberOfLines={1}>
-                                    {t('chats.tap_to_view')}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <View style={[styles.chatMeta, isRTL && { alignItems: 'flex-start' }]}>
-                            <Text style={styles.chatTime}>
-                                {(item as any).last_activity ? formatTime((item as any).last_activity) : ''}
-                            </Text>
-                            <Ionicons
-                                name={isRTL ? "chevron-back" : "chevron-forward"}
-                                size={16}
-                                color={COLORS.textTertiary}
-                                style={{ marginTop: 4 }}
-                            />
-                        </View>
-                    </View>
-                </GlassCard>
-            </TouchableOpacity>
-        </Animated.View>
+      ]
     );
+  };
 
-    return (
-        <View style={styles.container}>
-            <LinearGradient
-                colors={COLORS.backgroundGradient as any}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-            />
-            <SafeAreaView style={styles.safeArea} edges={['top']}>
-                {/* Header */}
-                <View style={[styles.header, isRTL && { flexDirection: 'row-reverse' }]}>
-                    <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t('chats.title')}</Text>
-                </View>
+  const filteredGames = joinedGames.filter(game => {
+    if (hiddenChats.includes(game.id)) return false;
 
-                {/* Search */}
-                <View style={styles.searchContainer}>
-                    <View style={[styles.searchPill, isRTL && { flexDirection: 'row-reverse' }]}>
-                        <View style={styles.searchIconContainer}>
-                            <Ionicons name="search" size={18} color={COLORS.textTertiary} />
-                        </View>
-                        <TextInput
-                            style={[styles.searchInput, isRTL && { textAlign: 'right' }]}
-                            placeholder={t('explore.search_placeholder')}
-                            placeholderTextColor={COLORS.textTertiary}
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                            selectionColor={COLORS.turfGreenLight}
-                        />
-                        {searchQuery.length > 0 && (
-                            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-                                <Ionicons name="close-circle" size={18} color={COLORS.textTertiary} />
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const titleMatch = game.title.toLowerCase().includes(query);
+      if (!titleMatch) return false;
+    }
 
-                {/* Tabs */}
-                <View style={[styles.tabsWrapper, isRTL && { flexDirection: 'row-reverse' }]}>
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]}
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setActiveTab('upcoming');
-                        }}
-                        activeOpacity={0.7}
-                    >
-                        {activeTab === 'upcoming' && (
-                            <LinearGradient
-                                colors={[COLORS.turfGreenLight, COLORS.turfGreen]}
-                                style={StyleSheet.absoluteFill}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                            />
-                        )}
-                        <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>
-                            {t('chats.active')}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'past' && styles.activeTab]}
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setActiveTab('past');
-                        }}
-                        activeOpacity={0.7}
-                    >
-                        {activeTab === 'past' && (
-                            <LinearGradient
-                                colors={[COLORS.turfGreenLight, COLORS.turfGreen]}
-                                style={StyleSheet.absoluteFill}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                            />
-                        )}
-                        <Text style={[styles.tabText, activeTab === 'past' && styles.activeTabText]}>
-                            {t('chats.past')}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
+    const gameDate = new Date(game.start_time);
+    const now = new Date();
 
-                {/* Content */}
-                {loading ? (
-                    <LoadingState />
-                ) : (
-                    <FlatList
-                        data={filteredGames}
-                        keyExtractor={(item) => item.id}
-                        contentContainerStyle={styles.listContent}
-                        showsVerticalScrollIndicator={false}
-                        refreshControl={
-                            <RefreshControl
-                                refreshing={refreshing}
-                                onRefresh={onRefresh}
-                                tintColor={COLORS.turfGreenLight}
-                                colors={[COLORS.turfGreen]}
-                            />
-                        }
-                        renderItem={renderChatItem}
-                        ListEmptyComponent={
-                            <EmptyState
-                                icon="chatbubbles-outline"
-                                title={t('chats.no_chats')}
-                                message={t('chats.no_chats_text')}
-                            />
-                        }
-                    />
-                )}
-            </SafeAreaView>
+    if (activeTab === 'upcoming') {
+      return gameDate > now;
+    } else {
+      return gameDate <= now;
+    }
+  }).sort((a, b) => {
+    const timeA = new Date((a as any).last_activity || a.created_at).getTime();
+    const timeB = new Date((b as any).last_activity || b.created_at).getTime();
+    return timeB - timeA;
+  });
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+      return `לפני ${days} ימים`;
+    } else if (hours > 0) {
+      return `לפני ${hours} שעות`;
+    } else if (minutes > 0) {
+      return `לפני ${minutes} דקות`;
+    } else {
+      return 'עכשיו';
+    }
+  };
+
+  const formatGameDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'היום';
+    } else if (date.toDateString() === tomorrow.toDateString()) {
+      return 'מחר';
+    }
+    return date.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' });
+  };
+
+  const ChatItem = ({ item, index }: { item: Game; index: number }) => (
+    <Animated.View entering={FadeInDown.delay(index * 50).duration(400)}>
+      <TouchableOpacity
+        style={styles.chatItem}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push(`/game/${item.id}/chat`);
+        }}
+        onLongPress={() => handleHideChat(item.id)}
+        activeOpacity={0.7}
+      >
+        {/* Avatar */}
+        <View style={styles.avatar}>
+          <Ionicons name="chatbubbles" size={22} color={COLORS.primary} />
         </View>
-    );
+
+        {/* Content */}
+        <View style={styles.chatContent}>
+          <View style={styles.chatHeader}>
+            <Text style={styles.chatTitle} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.chatTime}>
+              {(item as any).last_activity ? formatTime((item as any).last_activity) : ''}
+            </Text>
+          </View>
+          <View style={styles.chatMeta}>
+            <View style={styles.formatBadge}>
+              <Text style={styles.formatText}>{item.format}</Text>
+            </View>
+            <Text style={styles.dateText}>{formatGameDate(item.start_time)}</Text>
+          </View>
+        </View>
+
+        {/* Arrow */}
+        <Ionicons name="chevron-back" size={16} color={COLORS.quaternaryLabel} />
+      </TouchableOpacity>
+    </Animated.View>
+  );
+
+  const EmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <View style={styles.emptyIconContainer}>
+        <Ionicons name="chatbubbles-outline" size={40} color={COLORS.tertiaryLabel} />
+      </View>
+      <Text style={styles.emptyTitle}>אין צ'אטים</Text>
+      <Text style={styles.emptyMessage}>
+        הצטרפו למשחק כדי להתחיל לשוחח עם שחקנים אחרים
+      </Text>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Header */}
+        <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+          <Text style={styles.headerTitle}>צ'אטים</Text>
+
+          {/* Search */}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={18} color={COLORS.tertiaryLabel} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="חיפוש צ'אט..."
+              placeholderTextColor={COLORS.quaternaryLabel}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              selectionColor={COLORS.primary}
+              textAlign="right"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color={COLORS.tertiaryLabel} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Tabs */}
+          <View style={styles.tabsContainer}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'upcoming' && styles.tabActive]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setActiveTab('upcoming');
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>
+                פעילים
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'past' && styles.tabActive]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setActiveTab('past');
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.tabText, activeTab === 'past' && styles.tabTextActive]}>
+                היסטוריה
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        {/* Content */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredGames}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={COLORS.primary}
+              />
+            }
+            renderItem={({ item, index }) => <ChatItem item={item} index={index} />}
+            ListEmptyComponent={<EmptyState />}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+          />
+        )}
+      </SafeAreaView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: COLORS.darkBackground,
-    },
-    safeArea: {
-        flex: 1,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: SPACING.l,
-        paddingTop: SPACING.m,
-        paddingBottom: SPACING.s,
-    },
-    headerTitle: {
-        fontSize: 32,
-        fontWeight: '800',
-        color: COLORS.textPrimary,
-        fontFamily: FONTS.heading,
-        letterSpacing: 0.5,
-    },
-    searchContainer: {
-        paddingHorizontal: SPACING.l,
-        marginBottom: SPACING.m,
-    },
-    searchPill: {
-        height: 50,
-        backgroundColor: COLORS.inputBackground,
-        borderRadius: BORDER_RADIUS.m,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.inputBorder,
-    },
-    searchIconContainer: {
-        width: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    searchInput: {
-        flex: 1,
-        color: COLORS.textPrimary,
-        fontSize: 15,
-        fontFamily: FONTS.body,
-    },
-    clearButton: {
-        width: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    tabsWrapper: {
-        flexDirection: 'row',
-        marginHorizontal: SPACING.l,
-        marginBottom: SPACING.m,
-        backgroundColor: COLORS.inputBackground,
-        borderRadius: BORDER_RADIUS.m,
-        padding: 4,
-        borderWidth: 1,
-        borderColor: COLORS.inputBorder,
-    },
-    tab: {
-        flex: 1,
-        paddingVertical: 10,
-        alignItems: 'center',
-        borderRadius: BORDER_RADIUS.s,
-        overflow: 'hidden',
-    },
-    activeTab: {
-        borderColor: COLORS.turfGreen,
-    },
-    tabText: {
-        color: COLORS.textTertiary,
-        fontWeight: '600',
-        fontSize: 14,
-        fontFamily: FONTS.body,
-    },
-    activeTabText: {
-        color: COLORS.textPrimary,
-    },
-    listContent: {
-        paddingHorizontal: SPACING.m,
-        paddingBottom: 120,
-    },
-    chatCard: {
-        marginBottom: SPACING.s,
-    },
-    chatItemContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: SPACING.m,
-    },
-    avatarContainer: {
-        width: 52,
-        height: 52,
-        borderRadius: BORDER_RADIUS.m,
-        overflow: 'hidden',
-    },
-    avatarGradient: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    chatMainInfo: {
-        flex: 1,
-        marginLeft: SPACING.m,
-    },
-    chatName: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: COLORS.textPrimary,
-        fontFamily: FONTS.heading,
-        marginBottom: 4,
-    },
-    chatPreviewRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    formatMini: {
-        backgroundColor: COLORS.successLight,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: BORDER_RADIUS.xs,
-        marginRight: SPACING.xs,
-    },
-    formatMiniText: {
-        color: COLORS.turfGreenLight,
-        fontSize: 9,
-        fontWeight: '700',
-        textTransform: 'uppercase',
-    },
-    chatPreviewText: {
-        fontSize: 13,
-        color: COLORS.textTertiary,
-        fontFamily: FONTS.body,
-    },
-    chatMeta: {
-        alignItems: 'flex-end',
-        justifyContent: 'center',
-    },
-    chatTime: {
-        fontSize: 11,
-        color: COLORS.textTertiary,
-        fontWeight: '600',
-    },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.separator,
+  },
+  headerTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: COLORS.label,
+    textAlign: 'right',
+    letterSpacing: -0.5,
+    marginBottom: 16,
+  },
+  searchContainer: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    height: 44,
+    backgroundColor: COLORS.systemGray6,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    gap: 8,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 16,
+    color: COLORS.label,
+    textAlign: 'right',
+  },
+  tabsContainer: {
+    flexDirection: 'row-reverse',
+    backgroundColor: COLORS.systemGray6,
+    borderRadius: 10,
+    padding: 3,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  tabActive: {
+    backgroundColor: COLORS.background,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.tertiaryLabel,
+  },
+  tabTextActive: {
+    color: COLORS.label,
+    fontWeight: '600',
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 100,
+  },
+  chatItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: COLORS.systemGray6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatContent: {
+    flex: 1,
+    marginRight: 12,
+    marginLeft: 8,
+  },
+  chatHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  chatTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.label,
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 8,
+  },
+  chatTime: {
+    fontSize: 12,
+    color: COLORS.tertiaryLabel,
+  },
+  chatMeta: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  formatBadge: {
+    backgroundColor: COLORS.systemGray6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  formatText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: COLORS.secondaryLabel,
+  },
+  dateText: {
+    fontSize: 13,
+    color: COLORS.tertiaryLabel,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: COLORS.separator,
+    marginRight: 62,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingTop: 80,
+    paddingHorizontal: 40,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.systemGray6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.label,
+    marginBottom: 8,
+  },
+  emptyMessage: {
+    fontSize: 14,
+    color: COLORS.tertiaryLabel,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 });
