@@ -1,49 +1,53 @@
 export const COLORS = {
-  // Brand Colors - Apple-inspired calm palette
-  turfGreen: '#0A7B5F',
-  turfGreenLight: '#11A882',
-  turfGreenDark: '#075E49',
-  accentOrange: '#F5B041',
-  accentOrangeLight: '#F8C471',
-  accentGold: '#F9E79F',
+  // Brand Colors - Vibrant neon palette
+  turfGreen: '#00D26A',
+  turfGreenLight: '#00E676',
+  turfGreenDark: '#00A855',
+  accentOrange: '#FF6B35',
+  accentOrangeLight: '#FF8A5C',
+  accentGold: '#FFD700',
+  accentPurple: '#A855F7',
+  accentBlue: '#38BDF8',
+  accentYellow: '#FBBF24',
 
-  // Backgrounds - Bright, premium
-  darkBackground: '#F4F6F8',
-  darkBackgroundSecondary: '#EEF2F7',
-  backgroundGradient: ['#F8FAFC', '#EEF2F7', '#F6F8FB'] as const,
-  backgroundGradientLight: ['#FFFFFF', '#F7F9FC', '#EEF2F7'] as const,
+  // Backgrounds - Dark premium gradient
+  darkBackground: '#0A1A14',
+  darkBackgroundSecondary: '#0D2818',
+  darkBackgroundTertiary: '#14332A',
+  backgroundGradient: ['#0A1A14', '#0D2818', '#14332A'] as const,
+  backgroundGradientLight: ['#0D2818', '#14332A', '#1A4033'] as const,
 
-  // Glass & Cards
-  cardGlass: 'rgba(255, 255, 255, 0.7)',
-  cardGlassStrong: 'rgba(255, 255, 255, 0.9)',
-  cardGlassBorder: 'rgba(15, 23, 42, 0.08)',
-  cardSolid: '#FFFFFF',
-  cardSolidLight: '#F9FAFB',
+  // Glass & Cards - Dark glassmorphism
+  cardGlass: 'rgba(255, 255, 255, 0.08)',
+  cardGlassStrong: 'rgba(255, 255, 255, 0.12)',
+  cardGlassBorder: 'rgba(255, 255, 255, 0.12)',
+  cardSolid: 'rgba(255, 255, 255, 0.06)',
+  cardSolidLight: 'rgba(255, 255, 255, 0.04)',
 
-  // Text Hierarchy
-  textPrimary: '#0B0F12',
-  textSecondary: '#5F6B7A',
-  textTertiary: '#9AA4AF',
-  textMuted: '#B6C0CA',
+  // Text Hierarchy - Light on dark
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255, 255, 255, 0.7)',
+  textTertiary: 'rgba(255, 255, 255, 0.5)',
+  textMuted: 'rgba(255, 255, 255, 0.35)',
 
   // Status Colors
-  success: '#22C55E',
-  successLight: 'rgba(34, 197, 94, 0.12)',
-  error: '#EF4444',
-  errorLight: 'rgba(239, 68, 68, 0.12)',
-  warning: '#F59E0B',
-  warningLight: 'rgba(245, 158, 11, 0.12)',
-  info: '#3B82F6',
-  infoLight: 'rgba(59, 130, 246, 0.12)',
+  success: '#00D26A',
+  successLight: 'rgba(0, 210, 106, 0.15)',
+  error: '#FF5252',
+  errorLight: 'rgba(255, 82, 82, 0.15)',
+  warning: '#FF9800',
+  warningLight: 'rgba(255, 152, 0, 0.15)',
+  info: '#38BDF8',
+  infoLight: 'rgba(56, 189, 248, 0.15)',
 
   // Interactive States
-  inputBackground: '#F9FAFB',
-  inputBorder: '#E5E7EB',
-  inputFocusBorder: 'rgba(10, 123, 95, 0.45)',
+  inputBackground: 'rgba(255, 255, 255, 0.06)',
+  inputBorder: 'rgba(255, 255, 255, 0.12)',
+  inputFocusBorder: 'rgba(0, 210, 106, 0.5)',
 
   // Overlays
-  overlayDark: 'rgba(15, 23, 42, 0.12)',
-  overlayLight: 'rgba(255, 255, 255, 0.6)',
+  overlayDark: 'rgba(0, 0, 0, 0.6)',
+  overlayLight: 'rgba(255, 255, 255, 0.1)',
 };
 
 export const SPACING = {
@@ -96,35 +100,35 @@ export const SHADOWS = {
   glass: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.4,
     shadowRadius: 24,
     elevation: 12,
   },
   card: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  button: {
-    shadowColor: '#00875A',
-    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
   },
-  glow: {
-    shadowColor: '#00875A',
-    shadowOffset: { width: 0, height: 0 },
+  button: {
+    shadowColor: '#00D26A',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  glow: {
+    shadowColor: '#00D26A',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
     shadowRadius: 24,
     elevation: 12,
   },
   softGlow: {
-    shadowColor: '#00875A',
+    shadowColor: '#00D26A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },

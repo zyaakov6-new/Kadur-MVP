@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  ScrollView,
   TextInput,
   StyleSheet,
   ActivityIndicator,
@@ -77,20 +76,25 @@ export default function ExploreScreen() {
   }, []);
 
   const fetchGames = async () => {
-    const { data, error } = await supabase
-      .from('games')
-      .select('*')
-      .eq('status', 'open')
-      .gt('start_time', new Date().toISOString())
-      .order('start_time', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('games')
+        .select('*')
+        .eq('status', 'open')
+        .gt('start_time', new Date().toISOString())
+        .order('start_time', { ascending: true });
 
-    if (error) {
-      console.error(error);
-    } else {
-      setGames(data as any);
+      if (error) {
+        console.error('Error fetching games:', error);
+      } else {
+        setGames(data as any);
+      }
+    } catch (err) {
+      console.error('Fetch games error:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setLoading(false);
-    setRefreshing(false);
   };
 
   const onRefresh = () => {
@@ -133,7 +137,7 @@ export default function ExploreScreen() {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return 'היום 🔥';
+      return 'היום';
     } else if (date.toDateString() === tomorrow.toDateString()) {
       return 'מחר';
     }
@@ -142,6 +146,12 @@ export default function ExploreScreen() {
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const isToday = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
   };
 
   const FilterChip = ({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) => (
@@ -171,9 +181,10 @@ export default function ExploreScreen() {
     const spotsLeft = item.max_players - (item.current_players || 0);
     const isFilling = spotsLeft <= 3 && spotsLeft > 0;
     const isFull = spotsLeft <= 0;
+    const isGameToday = isToday(item.start_time);
 
     return (
-      <Animated.View entering={FadeInDown.delay(index * 60).duration(400)}>
+      <Animated.View entering={FadeInDown.delay(index * 50).duration(400)}>
         <TouchableOpacity
           style={styles.gameCard}
           onPress={() => {
@@ -189,22 +200,21 @@ export default function ExploreScreen() {
             end={{ x: 1, y: 1 }}
           />
 
-          <View style={styles.cardTop}>
-            <View style={styles.cardInfo}>
-              <Text style={styles.gameTitle} numberOfLines={1}>{item.title}</Text>
-              <View style={styles.metaRow}>
-                <View style={styles.metaItem}>
-                  <Ionicons name="time" size={13} color={COLORS.accent} />
-                  <Text style={styles.metaText}>{formatTime(item.start_time)}</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <Ionicons name="calendar" size={13} color={COLORS.accentBlue} />
-                  <Text style={styles.metaText}>{formatDate(item.start_time)}</Text>
-                </View>
+          {/* Header Row */}
+          <View style={styles.cardHeader}>
+            <View style={styles.cardTitleArea}>
+              <View style={styles.titleRow}>
+                <Text style={styles.gameTitle} numberOfLines={1}>{item.title}</Text>
+                {isGameToday && (
+                  <View style={styles.liveBadge}>
+                    <View style={styles.liveDot} />
+                    <Text style={styles.liveText}>היום</Text>
+                  </View>
+                )}
               </View>
               {item.address && (
-                <View style={styles.metaItem}>
-                  <Ionicons name="location" size={13} color={COLORS.textMuted} />
+                <View style={styles.locationRow}>
+                  <Ionicons name="location-outline" size={14} color={COLORS.textMuted} />
                   <Text style={styles.locationText} numberOfLines={1}>
                     {item.address.split(',')[0]}
                   </Text>
@@ -226,34 +236,41 @@ export default function ExploreScreen() {
             </View>
           </View>
 
-          {item.description && (
-            <Text style={styles.description} numberOfLines={2}>
-              {item.description}
-            </Text>
-          )}
-
-          <View style={styles.cardFooter}>
-            <View style={styles.playersInfo}>
+          {/* Info Row */}
+          <View style={styles.infoRow}>
+            <View style={styles.infoItem}>
+              <Ionicons name="calendar" size={16} color={COLORS.accentBlue} />
+              <Text style={styles.infoText}>{formatDate(item.start_time)}</Text>
+            </View>
+            <View style={styles.infoDivider} />
+            <View style={styles.infoItem}>
+              <Ionicons name="time" size={16} color={COLORS.accentOrange} />
+              <Text style={styles.infoText}>{formatTime(item.start_time)}</Text>
+            </View>
+            <View style={styles.infoDivider} />
+            <View style={styles.infoItem}>
               <Ionicons
                 name="people"
                 size={16}
                 color={isFull ? COLORS.error : isFilling ? COLORS.warning : COLORS.primary}
               />
               <Text style={[
-                styles.playersText,
-                isFull && styles.playersTextFull,
-                isFilling && styles.playersTextFilling,
+                styles.infoText,
+                isFull && { color: COLORS.error },
+                isFilling && { color: COLORS.warning },
+                !isFull && !isFilling && { color: COLORS.primary },
               ]}>
                 {item.current_players || 0}/{item.max_players}
               </Text>
-              {isFilling && !isFull && (
-                <Text style={styles.fillingBadge}>⚡ ממלא מהר</Text>
-              )}
-              {isFull && (
-                <Text style={styles.fullBadge}>מלא</Text>
-              )}
             </View>
-            <Ionicons name="arrow-back-circle" size={24} color={COLORS.primary} />
+          </View>
+
+          {/* Footer */}
+          <View style={styles.cardFooter}>
+            <Text style={styles.joinHint}>
+              {isFull ? 'המשחק מלא' : isFilling ? `נשארו ${spotsLeft} מקומות` : 'לחצו להצטרפות'}
+            </Text>
+            <Ionicons name="arrow-back-circle" size={22} color={COLORS.primary} />
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -263,10 +280,14 @@ export default function ExploreScreen() {
   const EmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="search" size={40} color={COLORS.textMuted} />
+        <Ionicons name="football-outline" size={48} color={COLORS.textMuted} />
       </View>
-      <Text style={styles.emptyTitle}>לא נמצאו משחקים 🔍</Text>
-      <Text style={styles.emptyMessage}>נסו לשנות את הפילטרים או לחפש משהו אחר</Text>
+      <Text style={styles.emptyTitle}>אין משחקים זמינים</Text>
+      <Text style={styles.emptyMessage}>
+        {searchQuery || selectedFormat !== 'הכל' || selectedDate !== 'הכל'
+          ? 'נסו לשנות את הפילטרים'
+          : 'היו הראשונים ליצור משחק חדש!'}
+      </Text>
     </View>
   );
 
@@ -283,61 +304,57 @@ export default function ExploreScreen() {
       <View style={[styles.glowOrb, styles.glowOrb2]} />
 
       <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Compact Header */}
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
-          <Text style={styles.headerTitle}>חיפוש 🔎</Text>
-          <Text style={styles.headerSubtitle}>מצאו משחקים באזור שלכם</Text>
+          <Text style={styles.headerTitle}>חיפוש משחקים</Text>
 
           {/* Search Bar */}
           <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color={COLORS.textMuted} />
             <TextInput
               style={styles.searchInput}
-              placeholder="חיפוש משחק, מיקום..."
+              placeholder="חפשו משחק, מיקום..."
               placeholderTextColor={COLORS.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
               selectionColor={COLORS.primary}
               textAlign="right"
             />
+            <View style={styles.searchIconContainer}>
+              <Ionicons name="search" size={20} color={COLORS.textMuted} />
+            </View>
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
                 <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Format Filters */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filtersRow}
-          >
-            <FilterChip label="הכל" selected={selectedFormat === 'הכל'} onPress={() => setSelectedFormat('הכל')} />
-            <FilterChip label="5v5" selected={selectedFormat === '5v5'} onPress={() => setSelectedFormat('5v5')} />
-            <FilterChip label="7v7" selected={selectedFormat === '7v7'} onPress={() => setSelectedFormat('7v7')} />
-            <FilterChip label="11v11" selected={selectedFormat === '11v11'} onPress={() => setSelectedFormat('11v11')} />
-          </ScrollView>
+          {/* Combined Filters Row */}
+          <View style={styles.filtersContainer}>
+            <View style={styles.filterGroup}>
+              <FilterChip label="הכל" selected={selectedFormat === 'הכל'} onPress={() => setSelectedFormat('הכל')} />
+              <FilterChip label="5v5" selected={selectedFormat === '5v5'} onPress={() => setSelectedFormat('5v5')} />
+              <FilterChip label="7v7" selected={selectedFormat === '7v7'} onPress={() => setSelectedFormat('7v7')} />
+              <FilterChip label="11v11" selected={selectedFormat === '11v11'} onPress={() => setSelectedFormat('11v11')} />
+            </View>
+            <View style={styles.filterSeparator} />
+            <View style={styles.filterGroup}>
+              <FilterChip label="הכל" selected={selectedDate === 'הכל'} onPress={() => setSelectedDate('הכל')} />
+              <FilterChip label="היום" selected={selectedDate === 'היום'} onPress={() => setSelectedDate('היום')} />
+              <FilterChip label="מחר" selected={selectedDate === 'מחר'} onPress={() => setSelectedDate('מחר')} />
+            </View>
+          </View>
 
-          {/* Date Filters */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filtersRow}
-          >
-            <FilterChip label="הכל" selected={selectedDate === 'הכל'} onPress={() => setSelectedDate('הכל')} />
-            <FilterChip label="היום" selected={selectedDate === 'היום'} onPress={() => setSelectedDate('היום')} />
-            <FilterChip label="מחר" selected={selectedDate === 'מחר'} onPress={() => setSelectedDate('מחר')} />
-          </ScrollView>
-
+          {/* Results Count */}
           <Text style={styles.resultsCount}>
-            {filteredGames.length} {filteredGames.length === 1 ? 'משחק נמצא' : 'משחקים נמצאו'}
+            {loading ? 'טוען...' : `${filteredGames.length} משחקים נמצאו`}
           </Text>
         </Animated.View>
 
+        {/* Games List */}
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>מחפש משחקים...</Text>
           </View>
         ) : (
           <FlatList
@@ -373,13 +390,13 @@ const styles = StyleSheet.create({
     borderRadius: 150,
   },
   glowOrb1: {
-    top: -50,
+    top: -100,
     left: -100,
     backgroundColor: COLORS.accentPurple,
     opacity: 0.08,
   },
   glowOrb2: {
-    bottom: 100,
+    bottom: 150,
     right: -100,
     backgroundColor: COLORS.primary,
     opacity: 0.1,
@@ -390,29 +407,22 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: COLORS.textPrimary,
-    textAlign: 'right',
-    letterSpacing: 1,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
     textAlign: 'right',
     marginBottom: 16,
   },
   searchContainer: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
-    height: 52,
+    height: 48,
     backgroundColor: COLORS.inputBg,
-    borderRadius: 16,
+    borderRadius: 24,
     paddingHorizontal: 16,
-    gap: 12,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
@@ -420,19 +430,35 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: '100%',
-    fontSize: 16,
+    fontSize: 15,
     color: COLORS.textPrimary,
     textAlign: 'right',
   },
-  filtersRow: {
+  searchIconContainer: {
+    marginLeft: 8,
+  },
+  clearButton: {
+    marginRight: 8,
+  },
+  filtersContainer: {
     flexDirection: 'row-reverse',
-    gap: 10,
-    paddingVertical: 6,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  filterGroup: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+  },
+  filterSeparator: {
+    width: 1,
+    height: 20,
+    backgroundColor: COLORS.cardBorder,
+    marginHorizontal: 12,
   },
   filterChip: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 25,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
     backgroundColor: COLORS.inputBg,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
@@ -442,7 +468,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   filterChipText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: COLORS.textSecondary,
   },
@@ -453,56 +479,73 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textMuted,
     textAlign: 'right',
-    marginTop: 12,
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 100,
+    paddingTop: 4,
+    paddingBottom: 120,
   },
   gameCard: {
     borderRadius: 20,
-    padding: 18,
-    marginBottom: 14,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
     overflow: 'hidden',
   },
-  cardTop: {
+  cardHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 12,
   },
-  cardInfo: {
+  cardTitleArea: {
     flex: 1,
     marginLeft: 12,
   },
+  titleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   gameTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.textPrimary,
     textAlign: 'right',
-    marginBottom: 8,
+    flex: 1,
   },
-  metaRow: {
-    flexDirection: 'row-reverse',
-    gap: 14,
-    marginBottom: 6,
-  },
-  metaItem: {
+  liveBadge: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 5,
+    backgroundColor: 'rgba(255, 82, 82, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 4,
   },
-  metaText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.error,
+  },
+  liveText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.error,
+  },
+  locationRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
   },
   locationText: {
     fontSize: 13,
     color: COLORS.textMuted,
-    flex: 1,
     textAlign: 'right',
+    flex: 1,
   },
   formatBadge: {
     backgroundColor: 'rgba(0, 210, 106, 0.15)',
@@ -531,71 +574,63 @@ const styles = StyleSheet.create({
   formatTextFull: {
     color: COLORS.error,
   },
-  description: {
-    fontSize: 14,
+  infoRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 4,
+    marginBottom: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: COLORS.cardBorder,
+  },
+  infoItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  infoDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: COLORS.cardBorder,
+    marginHorizontal: 12,
+  },
+  infoText: {
+    fontSize: 13,
     color: COLORS.textSecondary,
-    textAlign: 'right',
-    marginTop: 10,
-    lineHeight: 20,
+    fontWeight: '600',
   },
   cardFooter: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.cardBorder,
   },
-  playersInfo: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 8,
-  },
-  playersText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  playersTextFilling: {
-    color: COLORS.warning,
-  },
-  playersTextFull: {
-    color: COLORS.error,
-  },
-  fillingBadge: {
-    fontSize: 12,
-    color: COLORS.warning,
-    fontWeight: '600',
-  },
-  fullBadge: {
-    fontSize: 12,
-    color: COLORS.error,
-    fontWeight: '600',
+  joinHint: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 80,
     paddingHorizontal: 40,
   },
   emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: COLORS.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   emptyTitle: {
     fontSize: 20,
@@ -607,5 +642,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     textAlign: 'center',
+    lineHeight: 22,
   },
 });

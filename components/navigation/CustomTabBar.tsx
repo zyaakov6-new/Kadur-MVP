@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Dimensions, Platform } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -9,64 +8,70 @@ import Animated, {
     withSpring,
     useSharedValue,
     interpolate,
-    interpolateColor,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { COLORS, BORDER_RADIUS, SHADOWS, FONTS, SPACING } from '../../constants/theme';
-import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
-export const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
-    const { t } = useTranslation();
+// Vibrant color palette matching the app
+const COLORS = {
+    primary: '#00D26A',
+    primaryDark: '#00A855',
+    bgDark: '#0A1A14',
+    bgMid: '#0D2818',
+    textSecondary: 'rgba(255, 255, 255, 0.5)',
+    cardBg: 'rgba(255, 255, 255, 0.08)',
+    cardBorder: 'rgba(255, 255, 255, 0.12)',
+};
 
+// Hebrew labels
+const TAB_LABELS: Record<string, string> = {
+    index: 'בית',
+    explore: 'חיפוש',
+    chats: 'צ׳אטים',
+    profile: 'פרופיל',
+};
+
+export const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
     return (
         <View style={styles.container}>
-            <View style={styles.shadowContainer}>
-                <BlurView intensity={25} tint="light" style={styles.blurContainer}>
-                    <LinearGradient
-                        colors={['rgba(255, 255, 255, 0.95)', 'rgba(248, 250, 252, 0.98)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={StyleSheet.absoluteFill}
-                    />
-                    {/* Top border highlight */}
-                    <View style={styles.topBorder} />
-                    <View style={styles.tabBar}>
-                        {state.routes.map((route, index) => {
-                            const isFocused = state.index === index;
+            <View style={styles.tabBarWrapper}>
+                <LinearGradient
+                    colors={['rgba(13, 40, 24, 0.95)', 'rgba(10, 26, 20, 0.98)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                />
+                <View style={styles.tabBar}>
+                    {state.routes.map((route, index) => {
+                        const isFocused = state.index === index;
 
-                            const onPress = () => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                const event = navigation.emit({
-                                    type: 'tabPress',
-                                    target: route.key,
-                                    canPreventDefault: true,
-                                });
+                        const onPress = () => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            const event = navigation.emit({
+                                type: 'tabPress',
+                                target: route.key,
+                                canPreventDefault: true,
+                            });
 
-                                if (!isFocused && !event.defaultPrevented) {
-                                    navigation.navigate(route.name);
-                                }
-                            };
+                            if (!isFocused && !event.defaultPrevented) {
+                                navigation.navigate(route.name);
+                            }
+                        };
 
-                            let label = '';
-                            if (route.name === 'index') label = t('tabs.home');
-                            if (route.name === 'explore') label = t('tabs.explore');
-                            if (route.name === 'chats') label = t('tabs.chats');
-                            if (route.name === 'profile') label = t('tabs.profile');
+                        const label = TAB_LABELS[route.name] || route.name;
 
-                            return (
-                                <TabIcon
-                                    key={index}
-                                    isFocused={isFocused}
-                                    onPress={onPress}
-                                    routeName={route.name}
-                                    label={label}
-                                />
-                            );
-                        })}
-                    </View>
-                </BlurView>
+                        return (
+                            <TabIcon
+                                key={index}
+                                isFocused={isFocused}
+                                onPress={onPress}
+                                routeName={route.name}
+                                label={label}
+                            />
+                        );
+                    })}
+                </View>
             </View>
         </View>
     );
@@ -95,7 +100,7 @@ const TabIcon = ({
 
     const animatedIconStyle = useAnimatedStyle(() => ({
         transform: [
-            { scale: interpolate(progress.value, [0, 1], [1, 1.15]) },
+            { scale: interpolate(progress.value, [0, 1], [1, 1.1]) },
             { translateY: interpolate(progress.value, [0, 1], [0, -2]) },
         ],
     }));
@@ -110,10 +115,9 @@ const TabIcon = ({
     }));
 
     const animatedLabelStyle = useAnimatedStyle(() => ({
-        opacity: progress.value,
+        opacity: interpolate(progress.value, [0, 1], [0.5, 1]),
         transform: [
-            { translateY: interpolate(progress.value, [0, 1], [5, 0]) },
-            { scale: interpolate(progress.value, [0, 1], [0.8, 1]) },
+            { translateY: interpolate(progress.value, [0, 1], [2, 0]) },
         ],
     }));
 
@@ -140,10 +144,10 @@ const TabIcon = ({
             style={styles.tabButton}
         >
             <Animated.View style={[styles.tabContent, animatedContainerStyle]}>
-                {/* Active background pill */}
+                {/* Active background pill with gradient */}
                 <Animated.View style={[styles.activeBackground, animatedBackgroundStyle]}>
                     <LinearGradient
-                        colors={['rgba(10, 123, 95, 0.14)', 'rgba(10, 123, 95, 0.08)']}
+                        colors={['rgba(0, 210, 106, 0.2)', 'rgba(0, 210, 106, 0.08)']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={StyleSheet.absoluteFill}
@@ -153,12 +157,16 @@ const TabIcon = ({
                 <Animated.View style={animatedIconStyle}>
                     <Ionicons
                         name={iconName}
-                        size={22}
-                        color={isFocused ? COLORS.turfGreenLight : COLORS.textTertiary}
+                        size={24}
+                        color={isFocused ? COLORS.primary : COLORS.textSecondary}
                     />
                 </Animated.View>
 
-                <Animated.Text style={[styles.tabLabel, animatedLabelStyle]}>
+                <Animated.Text style={[
+                    styles.tabLabel,
+                    isFocused && styles.tabLabelActive,
+                    animatedLabelStyle
+                ]}>
                     {label}
                 </Animated.Text>
             </Animated.View>
@@ -169,36 +177,29 @@ const TabIcon = ({
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        bottom: Platform.OS === 'ios' ? 28 : 20,
-        left: SPACING.m,
-        right: SPACING.m,
+        bottom: Platform.OS === 'ios' ? 24 : 16,
+        left: 16,
+        right: 16,
         alignItems: 'center',
     },
-    shadowContainer: {
+    tabBarWrapper: {
         width: '100%',
-        borderRadius: BORDER_RADIUS.xl,
-        ...SHADOWS.glass,
-    },
-    blurContainer: {
-        borderRadius: BORDER_RADIUS.xl,
+        borderRadius: 28,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: COLORS.cardGlassBorder,
-    },
-    topBorder: {
-        position: 'absolute',
-        top: 0,
-        left: SPACING.xl,
-        right: SPACING.xl,
-        height: 1,
-        backgroundColor: COLORS.cardGlassBorder,
+        borderColor: COLORS.cardBorder,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 12,
     },
     tabBar: {
         flexDirection: 'row',
-        height: 68,
+        height: 70,
         justifyContent: 'space-around',
         alignItems: 'center',
-        paddingHorizontal: SPACING.s,
+        paddingHorizontal: 8,
     },
     tabButton: {
         flex: 1,
@@ -209,22 +210,23 @@ const styles = StyleSheet.create({
     tabContent: {
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: SPACING.s,
-        paddingHorizontal: SPACING.m,
-        borderRadius: BORDER_RADIUS.m,
-        minWidth: 60,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        minWidth: 64,
     },
     activeBackground: {
         ...StyleSheet.absoluteFillObject,
-        borderRadius: BORDER_RADIUS.m,
+        borderRadius: 20,
         overflow: 'hidden',
     },
     tabLabel: {
         color: COLORS.textSecondary,
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: '600',
-        fontFamily: FONTS.body,
         marginTop: 4,
-        letterSpacing: 0.3,
+    },
+    tabLabelActive: {
+        color: COLORS.primary,
     },
 });

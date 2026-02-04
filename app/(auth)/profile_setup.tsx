@@ -1,37 +1,46 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FONTS, SPACING, BORDER_RADIUS } from '../../constants/theme';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { PremiumButton } from '../../components/ui/PremiumButton';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { FeedbackModal } from '../../components/ui/FeedbackModal';
+import * as Haptics from 'expo-haptics';
 
+// Vibrant color palette matching the app
 const COLORS = {
-    primary: '#0A7B5F',
-    primaryDark: '#075E49',
-    primaryLight: '#11A882',
-    accent: '#F5B041',
-    background: '#F4F6F8',
-    surface: '#FFFFFF',
-    surfaceLight: '#F9FAFB',
-    text: '#0B0F12',
-    textSecondary: '#5F6B7A',
-    textMuted: '#9AA4AF',
-    error: '#D14343',
-    border: '#E5E7EB',
+    primary: '#00D26A',
+    primaryDark: '#00A855',
+    primaryLight: '#00E676',
+    bgDark: '#0A1A14',
+    bgMid: '#0D2818',
+    bgLight: '#14332A',
+    accent: '#00FFB3',
+    accentOrange: '#FF6B35',
+    accentPurple: '#A855F7',
+    accentBlue: '#38BDF8',
+    textPrimary: '#FFFFFF',
+    textSecondary: 'rgba(255, 255, 255, 0.7)',
+    textMuted: 'rgba(255, 255, 255, 0.5)',
+    cardBg: 'rgba(255, 255, 255, 0.08)',
+    cardBorder: 'rgba(255, 255, 255, 0.12)',
+    inputBg: 'rgba(255, 255, 255, 0.06)',
+    error: '#FF5252',
 };
+
+const positions = [
+    { id: 'goalkeeper', label: 'שוער', icon: 'hand-left' },
+    { id: 'defender', label: 'מגן', icon: 'shield' },
+    { id: 'midfielder', label: 'קשר', icon: 'git-branch' },
+    { id: 'forward', label: 'חלוץ', icon: 'flash' },
+];
 
 export default function ProfileSetupScreen() {
     const { session } = useAuth();
     const router = useRouter();
-    const { isRTL } = useLanguage();
 
     const [fullName, setFullName] = useState('');
     const [city, setCity] = useState('');
@@ -53,10 +62,11 @@ export default function ProfileSetupScreen() {
 
     const handleSave = async () => {
         if (!fullName || !city) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             setModalConfig({
                 visible: true,
-                title: 'משהו השתבש',
-                message: 'נא למלא את כל שדות החובה.',
+                title: 'שגיאה',
+                message: 'נא למלא שם מלא ועיר',
                 type: 'error',
                 onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
             });
@@ -65,7 +75,7 @@ export default function ProfileSetupScreen() {
         if (!session?.user) {
             setModalConfig({
                 visible: true,
-                title: 'משהו השתבש',
+                title: 'שגיאה',
                 message: 'לא נמצאה התחברות פעילה. נסו להתחבר מחדש.',
                 type: 'error',
                 onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
@@ -74,6 +84,8 @@ export default function ProfileSetupScreen() {
         }
 
         setLoading(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
         try {
             const upsertPromise = supabase
                 .from('profiles')
@@ -85,19 +97,21 @@ export default function ProfileSetupScreen() {
                 });
 
             const timeoutPromise = new Promise<{ error: { message: string } }>((resolve) => {
-                setTimeout(() => resolve({ error: { message: 'בקשה נתקעה. נסו שוב בעוד כמה שניות.' } }), 12000);
+                setTimeout(() => resolve({ error: { message: 'הבקשה נכשלה. נסו שוב.' } }), 12000);
             });
 
             const { error } = await Promise.race([upsertPromise, timeoutPromise]);
 
             if (error) {
-                const isMissingProfiles = error.message?.includes('profiles')
-                    || error.message?.includes('schema cache');
-                if (isMissingProfiles) {
+                // Check if it's a database setup issue
+                const isDbIssue = error.message?.includes('profiles') || error.message?.includes('schema');
+                if (isDbIssue) {
+                    // Still let them continue if DB isn't ready
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setModalConfig({
                         visible: true,
-                        title: 'המשך משחק',
-                        message: 'מסך הפרופיל יופעל כשמסד הנתונים יהיה מוכן. ממשיכים לאפליקציה.',
+                        title: 'ממשיכים!',
+                        message: 'הפרופיל יישמר כשהמערכת תהיה מוכנה. בואו נשחק!',
                         type: 'success',
                         onClose: () => {
                             setModalConfig(prev => ({ ...prev, visible: false }));
@@ -107,18 +121,20 @@ export default function ProfileSetupScreen() {
                     return;
                 }
 
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                 setModalConfig({
                     visible: true,
-                    title: 'משהו השתבש',
+                    title: 'שגיאה',
                     message: error.message,
                     type: 'error',
                     onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
                 });
             } else {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 setModalConfig({
                     visible: true,
-                    title: 'הכול מוכן',
-                    message: 'הפרופיל נשמר בהצלחה.',
+                    title: 'מעולה! 🎉',
+                    message: 'הפרופיל נשמר בהצלחה. בואו נשחק!',
                     type: 'success',
                     onClose: () => {
                         setModalConfig(prev => ({ ...prev, visible: false }));
@@ -134,71 +150,152 @@ export default function ProfileSetupScreen() {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={['#F8FAFC', '#EEF2F7', '#F6F8FB']}
+                colors={[COLORS.bgDark, COLORS.bgMid, COLORS.bgLight]}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
             />
+
+            {/* Decorative glow orbs */}
+            <View style={[styles.glowOrb, styles.glowOrb1]} />
+            <View style={[styles.glowOrb, styles.glowOrb2]} />
+            <View style={[styles.glowOrb, styles.glowOrb3]} />
+
             <SafeAreaView style={styles.safeArea}>
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <Animated.View entering={FadeInDown.delay(200).springify()}>
-                        <GlassCard style={styles.formCard}>
-                            <Text style={[styles.title, isRTL && { textAlign: 'right' }]}>בואו נכיר</Text>
-                            <Text style={[styles.subtitle, isRTL && { textAlign: 'right' }]}>
-                                רגע לפני שמתחילים, ספרו לנו קצת עליכם.
-                            </Text>
-
-                            <View style={styles.inputSection}>
-                                <Text style={[styles.label, isRTL && { textAlign: 'right' }]}>שם מלא</Text>
-                                <View style={[styles.inputWrapper, isRTL && { flexDirection: 'row-reverse' }]}>
-                                    <Ionicons name="person-outline" size={20} color={COLORS.textMuted} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
-                                    <TextInput
-                                        style={[styles.input, isRTL && { textAlign: 'right', writingDirection: 'rtl' }]}
-                                        placeholder="לדוגמה: נועם לוי"
-                                        placeholderTextColor={COLORS.textMuted}
-                                        value={fullName}
-                                        onChangeText={setFullName}
-                                    />
-                                </View>
-                            </View>
-
-                            <View style={styles.inputSection}>
-                                <Text style={[styles.label, isRTL && { textAlign: 'right' }]}>עיר</Text>
-                                <View style={[styles.inputWrapper, isRTL && { flexDirection: 'row-reverse' }]}>
-                                    <Ionicons name="location-outline" size={20} color={COLORS.textMuted} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
-                                    <TextInput
-                                        style={[styles.input, isRTL && { textAlign: 'right', writingDirection: 'rtl' }]}
-                                        placeholder="לדוגמה: תל אביב"
-                                        placeholderTextColor={COLORS.textMuted}
-                                        value={city}
-                                        onChangeText={setCity}
-                                    />
-                                </View>
-                            </View>
-
-                            <View style={styles.inputSection}>
-                                <Text style={[styles.label, isRTL && { textAlign: 'right' }]}>עמדה מועדפת</Text>
-                                <View style={[styles.inputWrapper, isRTL && { flexDirection: 'row-reverse' }]}>
-                                    <Ionicons name="football-outline" size={20} color={COLORS.textMuted} style={isRTL ? { marginLeft: 12 } : { marginRight: 12 }} />
-                                    <TextInput
-                                        style={[styles.input, isRTL && { textAlign: 'right', writingDirection: 'rtl' }]}
-                                        placeholder="לדוגמה: חלוץ / שוער"
-                                        placeholderTextColor={COLORS.textMuted}
-                                        value={position}
-                                        onChangeText={setPosition}
-                                    />
-                                </View>
-                            </View>
-
-                            <PremiumButton
-                                title="בואו נשחק"
-                                onPress={handleSave}
-                                loading={loading}
-                                icon={<Ionicons name={isRTL ? "arrow-back" : "arrow-forward"} size={20} color="white" />}
-                                style={styles.button}
-                            />
-                        </GlassCard>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* Header */}
+                    <Animated.View entering={FadeIn.duration(600)} style={styles.header}>
+                        <View style={styles.iconContainer}>
+                            <LinearGradient
+                                colors={[COLORS.primary, COLORS.primaryDark]}
+                                style={styles.iconGradient}
+                            >
+                                <Text style={styles.iconEmoji}>⚽</Text>
+                            </LinearGradient>
+                        </View>
+                        <Text style={styles.title}>בואו נכיר! 👋</Text>
+                        <Text style={styles.subtitle}>ספרו לנו קצת עליכם לפני שמתחילים</Text>
                     </Animated.View>
+
+                    {/* Form Card */}
+                    <Animated.View
+                        entering={FadeInDown.delay(200).duration(500)}
+                        style={styles.formCard}
+                    >
+                        <LinearGradient
+                            colors={[COLORS.cardBg, 'rgba(255,255,255,0.04)']}
+                            style={StyleSheet.absoluteFill}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                        />
+
+                        {/* Full Name Input */}
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>שם מלא *</Text>
+                            <View style={styles.inputWrapper}>
+                                <Ionicons name="person-outline" size={20} color={COLORS.primary} style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="איך קוראים לך?"
+                                    placeholderTextColor={COLORS.textMuted}
+                                    value={fullName}
+                                    onChangeText={setFullName}
+                                    textAlign="right"
+                                />
+                            </View>
+                        </View>
+
+                        {/* City Input */}
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>עיר *</Text>
+                            <View style={styles.inputWrapper}>
+                                <Ionicons name="location-outline" size={20} color={COLORS.accentOrange} style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="איפה אתם גרים?"
+                                    placeholderTextColor={COLORS.textMuted}
+                                    value={city}
+                                    onChangeText={setCity}
+                                    textAlign="right"
+                                />
+                            </View>
+                        </View>
+
+                        {/* Position Selection */}
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>עמדה מועדפת</Text>
+                            <View style={styles.positionsGrid}>
+                                {positions.map((pos, index) => (
+                                    <Animated.View
+                                        key={pos.id}
+                                        entering={FadeInDown.delay(300 + index * 100).duration(400)}
+                                    >
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.positionButton,
+                                                position === pos.id && styles.positionButtonActive,
+                                            ]}
+                                            onPress={() => {
+                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                                setPosition(pos.id);
+                                            }}
+                                            activeOpacity={0.7}
+                                        >
+                                            {position === pos.id && (
+                                                <LinearGradient
+                                                    colors={[COLORS.primary, COLORS.primaryDark]}
+                                                    style={StyleSheet.absoluteFill}
+                                                    start={{ x: 0, y: 0 }}
+                                                    end={{ x: 1, y: 1 }}
+                                                />
+                                            )}
+                                            <Ionicons
+                                                name={pos.icon as any}
+                                                size={24}
+                                                color={position === pos.id ? COLORS.bgDark : COLORS.textSecondary}
+                                            />
+                                            <Text style={[
+                                                styles.positionLabel,
+                                                position === pos.id && styles.positionLabelActive
+                                            ]}>
+                                                {pos.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </Animated.View>
+                                ))}
+                            </View>
+                        </View>
+
+                        {/* Submit Button */}
+                        <TouchableOpacity
+                            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                            onPress={handleSave}
+                            disabled={loading}
+                            activeOpacity={0.8}
+                        >
+                            <LinearGradient
+                                colors={loading ? [COLORS.textMuted, COLORS.textMuted] : [COLORS.primary, COLORS.primaryDark]}
+                                style={styles.submitGradient}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                            >
+                                {loading ? (
+                                    <Text style={styles.submitText}>שומר...</Text>
+                                ) : (
+                                    <>
+                                        <Ionicons name="football" size={24} color={COLORS.bgDark} style={{ marginLeft: 8 }} />
+                                        <Text style={styles.submitText}>בואו נשחק!</Text>
+                                    </>
+                                )}
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </Animated.View>
+
+                    <View style={{ height: 40 }} />
                 </ScrollView>
             </SafeAreaView>
 
@@ -208,7 +305,7 @@ export default function ProfileSetupScreen() {
                 title={modalConfig.title}
                 message={modalConfig.message}
                 type={modalConfig.type}
-                buttonText={modalConfig.type === 'success' ? 'בואו נשחק' : 'אישור'}
+                buttonText={modalConfig.type === 'success' ? 'יאללה!' : 'הבנתי'}
                 icon={modalConfig.type === 'success' ? "football" : undefined}
             />
         </View>
@@ -218,88 +315,163 @@ export default function ProfileSetupScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: COLORS.bgDark,
+    },
+    glowOrb: {
+        position: 'absolute',
+        width: 300,
+        height: 300,
+        borderRadius: 150,
+    },
+    glowOrb1: {
+        top: -100,
+        right: -100,
+        backgroundColor: COLORS.primary,
+        opacity: 0.12,
+    },
+    glowOrb2: {
+        bottom: 100,
+        left: -150,
+        backgroundColor: COLORS.accentPurple,
+        opacity: 0.1,
+    },
+    glowOrb3: {
+        top: '40%',
+        right: -50,
+        backgroundColor: COLORS.accentOrange,
+        opacity: 0.08,
+        width: 200,
+        height: 200,
     },
     safeArea: {
         flex: 1,
     },
     scrollContent: {
         flexGrow: 1,
-        justifyContent: 'center',
-        padding: 24,
+        paddingHorizontal: 24,
+        paddingTop: 20,
     },
-    formCard: {
-        padding: SPACING.xl,
-        borderRadius: BORDER_RADIUS.xl,
-        backgroundColor: 'rgba(255,255,255,0.92)',
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: COLORS.text,
-        fontFamily: FONTS.heading,
-        marginBottom: 8,
-    },
-    subtitle: {
-        color: COLORS.textSecondary,
-        fontSize: 16,
-        fontFamily: FONTS.body,
+    header: {
+        alignItems: 'center',
         marginBottom: 32,
     },
-    inputSection: {
-        marginBottom: SPACING.l,
+    iconContainer: {
+        marginBottom: 20,
+    },
+    iconGradient: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 10,
+    },
+    iconEmoji: {
+        fontSize: 40,
+    },
+    title: {
+        fontSize: 32,
+        fontWeight: '800',
+        color: COLORS.textPrimary,
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    subtitle: {
+        fontSize: 16,
+        color: COLORS.textSecondary,
+        textAlign: 'center',
+    },
+    formCard: {
+        borderRadius: 24,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: COLORS.cardBorder,
+        overflow: 'hidden',
+    },
+    inputGroup: {
+        marginBottom: 24,
     },
     label: {
-        color: COLORS.textSecondary,
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: '600',
-        letterSpacing: 0.3,
-        marginBottom: 8,
-        fontFamily: FONTS.body,
+        color: COLORS.textSecondary,
+        marginBottom: 10,
+        textAlign: 'right',
     },
     inputWrapper: {
-        flexDirection: 'row',
+        flexDirection: 'row-reverse',
         alignItems: 'center',
-        backgroundColor: COLORS.surfaceLight,
-        borderRadius: BORDER_RADIUS.m,
+        backgroundColor: COLORS.inputBg,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: COLORS.cardBorder,
         paddingHorizontal: 16,
         height: 56,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+    },
+    inputIcon: {
+        marginLeft: 12,
     },
     input: {
         flex: 1,
-        color: COLORS.text,
         fontSize: 16,
-        fontFamily: FONTS.body,
-        height: '100%',
+        color: COLORS.textPrimary,
+        textAlign: 'right',
     },
-    button: {
-        backgroundColor: COLORS.primary,
-        borderRadius: BORDER_RADIUS.m,
-        height: 56,
+    positionsGrid: {
+        flexDirection: 'row-reverse',
+        flexWrap: 'wrap',
+        gap: 12,
+        justifyContent: 'center',
+    },
+    positionButton: {
+        width: 80,
+        height: 80,
+        borderRadius: 20,
+        backgroundColor: COLORS.inputBg,
+        borderWidth: 1,
+        borderColor: COLORS.cardBorder,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: SPACING.l,
+        overflow: 'hidden',
+    },
+    positionButtonActive: {
+        borderColor: COLORS.primary,
+    },
+    positionLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.textSecondary,
+        marginTop: 6,
+    },
+    positionLabelActive: {
+        color: COLORS.bgDark,
+    },
+    submitButton: {
+        marginTop: 8,
+        borderRadius: 16,
+        overflow: 'hidden',
         shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 8,
     },
-    buttonInner: {
-        flexDirection: 'row',
+    submitButtonDisabled: {
+        opacity: 0.7,
+    },
+    submitGradient: {
+        height: 56,
+        flexDirection: 'row-reverse',
         alignItems: 'center',
+        justifyContent: 'center',
     },
-    buttonDisabled: {
-        opacity: 0.5,
-    },
-    buttonText: {
-        color: 'white',
+    submitText: {
         fontSize: 18,
-        fontWeight: 'bold',
-        fontFamily: FONTS.heading,
+        fontWeight: '700',
+        color: COLORS.bgDark,
     },
 });
