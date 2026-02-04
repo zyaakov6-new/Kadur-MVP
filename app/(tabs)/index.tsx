@@ -1,5 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,18 +15,32 @@ import { Game } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
-import { GlassCard } from '../../components/ui/GlassCard';
-import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
-import { useTranslation } from 'react-i18next';
-import { useLanguage } from '../../contexts/LanguageContext';
-import { LoadingState } from '../../components/ui/LoadingState';
-import { EmptyState } from '../../components/ui/EmptyState';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
+// Apple-inspired color palette
+const COLORS = {
+  primary: '#34C759',
+  primaryDark: '#248A3D',
+  primaryLight: '#30D158',
+
+  background: '#FFFFFF',
+  backgroundSecondary: '#F2F2F7',
+
+  label: '#000000',
+  secondaryLabel: '#3C3C43',
+  tertiaryLabel: '#8E8E93',
+  quaternaryLabel: '#C7C7CC',
+
+  separator: '#E5E5EA',
+  systemGray6: '#F2F2F7',
+
+  orange: '#FF9500',
+  red: '#FF3B30',
+  blue: '#007AFF',
+};
+
 export default function HomeScreen() {
-  const { t } = useTranslation();
-  const { isRTL } = useLanguage();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,7 +75,7 @@ export default function HomeScreen() {
       .eq('status', 'open')
       .gt('start_time', new Date().toISOString())
       .order('start_time', { ascending: true })
-      .limit(10);
+      .limit(20);
 
     if (error) {
       console.error(error);
@@ -66,6 +88,7 @@ export default function HomeScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     fetchGames();
   };
 
@@ -76,140 +99,137 @@ export default function HomeScreen() {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return t('common.today');
+      return 'היום';
     } else if (date.toDateString() === tomorrow.toDateString()) {
-      return t('common.tomorrow');
+      return 'מחר';
     }
-    return date.toLocaleDateString(isRTL ? 'he-IL' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString(isRTL ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+    return new Date(dateString).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const QuickAction = ({
-    icon,
-    label,
-    onPress,
-    accent = COLORS.turfGreen,
-  }: {
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    onPress: () => void;
-    accent?: string;
-  }) => (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.85}
-      style={[styles.quickAction, { borderColor: `${accent}22` }]}
-    >
-      <LinearGradient
-        colors={[`${accent}1A`, 'rgba(255,255,255,0.9)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={[styles.quickIcon, { backgroundColor: `${accent}1F` }]}>
-        <Ionicons name={icon} size={18} color={accent} />
-      </View>
-      <Text style={styles.quickLabel}>{label}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderGameCard = ({ item, index }: { item: Game; index: number }) => {
+  const GameCard = ({ item, index }: { item: Game; index: number }) => {
     const spotsLeft = item.max_players - (item.current_players || 0);
     const isFilling = spotsLeft <= 3 && spotsLeft > 0;
+    const isFull = spotsLeft <= 0;
 
     return (
-      <Animated.View entering={FadeInDown.delay(index * 80).springify()}>
+      <Animated.View entering={FadeInDown.delay(index * 50).duration(400)}>
         <TouchableOpacity
+          style={styles.gameCard}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.push(`/game/${item.id}`);
           }}
-          activeOpacity={0.9}
+          activeOpacity={0.7}
         >
-          <GlassCard style={styles.gameCard} variant="elevated">
-            <View style={[styles.gameCardRow, isRTL && { flexDirection: 'row-reverse' }]}>
-              <View style={[styles.timePill, isRTL && { alignItems: 'flex-end' }]}>
-                <Text style={styles.timeDate}>{formatDate(item.start_time)}</Text>
-                <Text style={styles.timeHour}>{formatTime(item.start_time)}</Text>
-              </View>
+          {/* Date/Time Column */}
+          <View style={styles.dateColumn}>
+            <Text style={styles.dateText}>{formatDate(item.start_time)}</Text>
+            <Text style={styles.timeText}>{formatTime(item.start_time)}</Text>
+          </View>
 
-              <View style={[styles.gameMain, isRTL && { alignItems: 'flex-end' }]}>
-                <View style={[styles.gameHeaderRow, isRTL && { flexDirection: 'row-reverse' }]}>
-                  <Text style={[styles.gameTitle, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <View style={styles.formatBadge}>
-                    <Text style={styles.formatText}>{item.format}</Text>
-                  </View>
-                </View>
+          {/* Divider */}
+          <View style={styles.cardDivider} />
 
-                {item.description && (
-                  <Text style={[styles.gameDescription, isRTL && { textAlign: 'right' }]} numberOfLines={2}>
-                    {item.description}
-                  </Text>
-                )}
-
-                <View style={[styles.metaRow, isRTL && { flexDirection: 'row-reverse' }]}>
-                  <View style={[styles.spotsBadge, isFilling && styles.spotsBadgeFilling]}>
-                    <Ionicons
-                      name="people"
-                      size={14}
-                      color={isFilling ? COLORS.accentOrange : COLORS.turfGreenLight}
-                    />
-                    <Text style={[styles.spotsText, isFilling && styles.spotsTextFilling]}>
-                      {item.current_players || 0}/{item.max_players}
-                    </Text>
-                  </View>
-                  {isFilling && (
-                    <Text style={styles.fillingText}>{t('home.filling_fast')}</Text>
-                  )}
-                </View>
-
-                {item.address && (
-                  <View style={[styles.locationRow, isRTL && { flexDirection: 'row-reverse' }]}>
-                    <Ionicons name="location" size={12} color={COLORS.textTertiary} />
-                    <Text style={styles.locationText} numberOfLines={1}>
-                      {item.address.split(',')[0]}
-                    </Text>
-                  </View>
-                )}
+          {/* Content */}
+          <View style={styles.cardContent}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.gameTitle} numberOfLines={1}>{item.title}</Text>
+              <View style={[
+                styles.formatBadge,
+                isFull && styles.formatBadgeFull,
+                isFilling && styles.formatBadgeFilling,
+              ]}>
+                <Text style={[
+                  styles.formatText,
+                  isFull && styles.formatTextFull,
+                  isFilling && styles.formatTextFilling,
+                ]}>
+                  {item.format}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.cardCtaRow}>
-              <Text style={styles.cardCtaText}>{t('home.view_game') || 'צפו בפרטים'}</Text>
-              <Ionicons
-                name={isRTL ? "chevron-back" : "chevron-forward"}
-                size={16}
-                color={COLORS.textTertiary}
-              />
+            {item.address && (
+              <View style={styles.locationRow}>
+                <Ionicons name="location-outline" size={14} color={COLORS.tertiaryLabel} />
+                <Text style={styles.locationText} numberOfLines={1}>
+                  {item.address.split(',')[0]}
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.cardFooter}>
+              <View style={styles.playersInfo}>
+                <Ionicons
+                  name="people-outline"
+                  size={14}
+                  color={isFull ? COLORS.red : isFilling ? COLORS.orange : COLORS.primary}
+                />
+                <Text style={[
+                  styles.playersText,
+                  isFull && styles.playersTextFull,
+                  isFilling && styles.playersTextFilling,
+                ]}>
+                  {item.current_players || 0}/{item.max_players}
+                </Text>
+                {isFilling && !isFull && (
+                  <Text style={styles.fillingText}>נשארו {spotsLeft} מקומות</Text>
+                )}
+                {isFull && (
+                  <Text style={styles.fullText}>מלא</Text>
+                )}
+              </View>
+              <Ionicons name="chevron-back" size={16} color={COLORS.quaternaryLabel} />
             </View>
-          </GlassCard>
+          </View>
         </TouchableOpacity>
       </Animated.View>
     );
   };
 
+  const EmptyState = () => (
+    <Animated.View entering={FadeIn.delay(200)} style={styles.emptyContainer}>
+      <View style={styles.emptyIconContainer}>
+        <Ionicons name="football-outline" size={48} color={COLORS.tertiaryLabel} />
+      </View>
+      <Text style={styles.emptyTitle}>אין משחקים קרובים</Text>
+      <Text style={styles.emptyMessage}>
+        היו הראשונים ליצור משחק באזור שלכם
+      </Text>
+      <TouchableOpacity
+        style={styles.emptyButton}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          router.push('/create-game');
+        }}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={20} color="white" />
+        <Text style={styles.emptyButtonText}>יצירת משחק</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+
+  const LoadingState = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color={COLORS.primary} />
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={COLORS.backgroundGradient as any}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-      />
-
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         {/* Header */}
-        <View style={[styles.header, isRTL && { flexDirection: 'row-reverse' }]}>
-          <View style={[styles.headerLeft, isRTL && { alignItems: 'flex-end' }]}>
-            <Text style={[styles.brandName, isRTL && { textAlign: 'right' }]}>כדור</Text>
-            <Text style={[styles.subtitle, isRTL && { textAlign: 'right' }]}>{t('home.welcome')}</Text>
-          </View>
-          {games.length > 0 && (
+        <Animated.View entering={FadeInUp.duration(500)} style={styles.header}>
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={styles.greeting}>שלום</Text>
+              <Text style={styles.headerTitle}>כדור</Text>
+            </View>
             <TouchableOpacity
               style={styles.createButton}
               onPress={() => {
@@ -219,43 +239,47 @@ export default function HomeScreen() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={[COLORS.turfGreenLight, COLORS.turfGreen]}
+                colors={[COLORS.primaryLight, COLORS.primary]}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               />
-              <Ionicons name="add" size={26} color="white" />
+              <Ionicons name="add" size={24} color="white" />
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
 
-        <View style={styles.quickRow}>
-          <QuickAction
-            icon="add-circle-outline"
-            label={t('home.create_first_game')}
-            onPress={() => router.push('/create-game')}
-          />
-          <QuickAction
-            icon="compass-outline"
-            label={t('tabs.explore')}
-            onPress={() => router.push('/(tabs)/explore')}
-            accent={COLORS.accentOrange}
-          />
-        </View>
+          {/* Quick Stats */}
+          {games.length > 0 && (
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{games.length}</Text>
+                <Text style={styles.statLabel}>משחקים פתוחים</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>
+                  {games.filter(g => {
+                    const date = new Date(g.start_time);
+                    return date.toDateString() === new Date().toDateString();
+                  }).length}
+                </Text>
+                <Text style={styles.statLabel}>היום</Text>
+              </View>
+            </View>
+          )}
+        </Animated.View>
 
         {/* Section Header */}
-        {games.length > 0 && (
-          <Animated.View
-            entering={FadeInRight.delay(200)}
-            style={[styles.sectionHeader, isRTL && { flexDirection: 'row-reverse' }]}
-          >
-            <View style={[styles.sectionTitleContainer, isRTL && { flexDirection: 'row-reverse' }]}>
-              <View style={styles.sectionIcon}>
-                <Ionicons name="flame" size={16} color={COLORS.accentOrange} />
-              </View>
-              <Text style={styles.sectionTitle}>{t('home.upcoming_games')}</Text>
-            </View>
-            <Text style={styles.gamesCount}>{games.length} {t('home.games_available')}</Text>
+        {!loading && games.length > 0 && (
+          <Animated.View entering={FadeIn.delay(200)} style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>משחקים קרובים</Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/explore')}
+              style={styles.seeAllButton}
+            >
+              <Text style={styles.seeAllText}>הכל</Text>
+              <Ionicons name="chevron-back" size={14} color={COLORS.primary} />
+            </TouchableOpacity>
           </Animated.View>
         )}
 
@@ -263,14 +287,7 @@ export default function HomeScreen() {
         {loading ? (
           <LoadingState />
         ) : games.length === 0 ? (
-          <EmptyState
-            icon="football-outline"
-            title={t('home.no_games')}
-            message={t('home.create_first_game_desc') || 'Be the first to organize a match in your area!'}
-            buttonTitle={t('home.create_first_game')}
-            onButtonPress={() => router.push('/create-game')}
-            buttonIcon="add-circle"
-          />
+          <EmptyState />
         ) : (
           <FlatList
             data={games}
@@ -281,11 +298,10 @@ export default function HomeScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={COLORS.turfGreenLight}
-                colors={[COLORS.turfGreen]}
+                tintColor={COLORS.primary}
               />
             }
-            renderItem={renderGameCard}
+            renderItem={({ item, index }) => <GameCard item={item} index={index} />}
           />
         )}
       </SafeAreaView>
@@ -296,235 +312,271 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.darkBackground,
+    backgroundColor: COLORS.background,
   },
   safeArea: {
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.separator,
+  },
+  headerTop: {
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SPACING.l,
-    paddingTop: SPACING.m,
-    paddingBottom: SPACING.xs,
   },
-  headerLeft: {
-    flex: 1,
-  },
-  brandName: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    fontFamily: FONTS.heading,
-    letterSpacing: 1,
-  },
-  subtitle: {
+  greeting: {
     fontSize: 14,
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.body,
-    marginTop: 2,
+    color: COLORS.tertiaryLabel,
+    textAlign: 'right',
+  },
+  headerTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: COLORS.label,
+    textAlign: 'right',
+    letterSpacing: -0.5,
   },
   createButton: {
-    width: 50,
-    height: 50,
-    borderRadius: BORDER_RADIUS.m,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    ...SHADOWS.button,
-  },
-  quickRow: {
-    flexDirection: 'row',
-    paddingHorizontal: SPACING.l,
-    gap: SPACING.m,
-    marginBottom: SPACING.m,
-  },
-  quickAction: {
-    flex: 1,
-    height: 64,
-    borderRadius: BORDER_RADIUS.l,
-    paddingHorizontal: SPACING.m,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderWidth: 1,
-  },
-  quickIcon: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  quickLabel: {
-    color: COLORS.textPrimary,
-    fontSize: 14,
-    fontFamily: FONTS.body,
-    fontWeight: '600',
+  statsRow: {
+    flexDirection: 'row-reverse',
+    marginTop: 16,
+    backgroundColor: COLORS.systemGray6,
+    borderRadius: 12,
+    padding: 12,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: COLORS.separator,
+    marginHorizontal: 12,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.label,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: COLORS.tertiaryLabel,
+    marginTop: 2,
   },
   sectionHeader: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SPACING.l,
-    paddingTop: SPACING.m,
-    paddingBottom: SPACING.s,
-  },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: BORDER_RADIUS.s,
-    backgroundColor: COLORS.warningLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.s,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    fontFamily: FONTS.heading,
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.label,
   },
-  gamesCount: {
-    fontSize: 12,
-    color: COLORS.textTertiary,
-    fontFamily: FONTS.body,
+  seeAllButton: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 2,
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '500',
   },
   listContent: {
-    paddingHorizontal: SPACING.m,
-    paddingTop: SPACING.s,
-    paddingBottom: 120,
+    paddingHorizontal: 20,
+    paddingBottom: 100,
   },
   gameCard: {
-    marginBottom: SPACING.m,
-    padding: SPACING.m,
+    flexDirection: 'row-reverse',
+    backgroundColor: COLORS.background,
+    borderRadius: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.separator,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  gameCardRow: {
-    flexDirection: 'row',
-    gap: SPACING.m,
-  },
-  timePill: {
-    width: 88,
-    paddingVertical: SPACING.s,
-    paddingHorizontal: SPACING.s,
-    borderRadius: BORDER_RADIUS.l,
-    backgroundColor: 'rgba(10, 123, 95, 0.1)',
+  dateColumn: {
+    width: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  timeDate: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.body,
-    textAlign: 'center',
+  dateText: {
+    fontSize: 12,
+    color: COLORS.tertiaryLabel,
+    fontWeight: '500',
   },
-  timeHour: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginTop: 4,
+  timeText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: COLORS.label,
+    marginTop: 2,
   },
-  gameMain: {
+  cardDivider: {
+    width: 1,
+    backgroundColor: COLORS.separator,
+    marginHorizontal: 12,
+  },
+  cardContent: {
     flex: 1,
-    gap: 8,
   },
-  gameHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  cardHeader: {
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    gap: SPACING.s,
+    alignItems: 'center',
+    marginBottom: 6,
   },
   gameTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    fontFamily: FONTS.heading,
+    fontSize: 17,
+    fontWeight: '600',
+    color: COLORS.label,
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 8,
   },
   formatBadge: {
-    backgroundColor: 'rgba(0, 168, 107, 0.12)',
-    paddingHorizontal: SPACING.m,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.s,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 168, 107, 0.25)',
+    backgroundColor: COLORS.systemGray6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  formatBadgeFilling: {
+    backgroundColor: '#FFF3E0',
+  },
+  formatBadgeFull: {
+    backgroundColor: '#FFEBEE',
   },
   formatText: {
-    color: COLORS.turfGreenLight,
     fontSize: 12,
-    fontWeight: '700',
-    fontFamily: FONTS.body,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  gameDescription: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.body,
-    lineHeight: 20,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-  },
-  spotsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.successLight,
-    paddingHorizontal: SPACING.s,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.xs,
-  },
-  spotsBadgeFilling: {
-    backgroundColor: COLORS.warningLight,
-  },
-  spotsText: {
-    color: COLORS.turfGreenLight,
-    fontSize: 12,
-    fontWeight: '700',
-    fontFamily: FONTS.body,
-  },
-  spotsTextFilling: {
-    color: COLORS.accentOrange,
-  },
-  fillingText: {
-    color: COLORS.accentOrange,
-    fontSize: 11,
     fontWeight: '600',
-    fontFamily: FONTS.body,
+    color: COLORS.secondaryLabel,
+  },
+  formatTextFilling: {
+    color: COLORS.orange,
+  },
+  formatTextFull: {
+    color: COLORS.red,
   },
   locationRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
+  },
+  locationText: {
+    fontSize: 13,
+    color: COLORS.tertiaryLabel,
+    flex: 1,
+    textAlign: 'right',
+  },
+  cardFooter: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  playersInfo: {
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 4,
   },
-  locationText: {
-    color: COLORS.textTertiary,
+  playersText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: COLORS.primary,
+  },
+  playersTextFilling: {
+    color: COLORS.orange,
+  },
+  playersTextFull: {
+    color: COLORS.red,
+  },
+  fillingText: {
     fontSize: 12,
-    fontFamily: FONTS.body,
+    color: COLORS.orange,
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  fullText: {
+    fontSize: 12,
+    color: COLORS.red,
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  loadingContainer: {
     flex: 1,
-  },
-  cardCtaRow: {
-    marginTop: SPACING.m,
-    paddingTop: SPACING.s,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.cardGlassBorder,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 6,
+    justifyContent: 'center',
   },
-  cardCtaText: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    fontFamily: FONTS.body,
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyIconContainer: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: COLORS.systemGray6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 20,
     fontWeight: '600',
+    color: COLORS.label,
+    marginBottom: 8,
+  },
+  emptyMessage: {
+    fontSize: 15,
+    color: COLORS.tertiaryLabel,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  emptyButton: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  emptyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
   },
 });
