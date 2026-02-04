@@ -1,75 +1,140 @@
 -- Fix for infinite recursion error in games policy
 -- Error: 42P17 - infinite recursion detected in policy for relation "games"
 --
--- This script fixes the table name mismatch between the schema (uses 'participants')
--- and the app code (uses 'game_participants'), and simplifies RLS policies.
+-- Run this script in your Supabase SQL Editor
 
--- Step 1: Create game_participants as a view of participants (if table doesn't exist)
--- First, check if game_participants already exists
-DO $$
-BEGIN
-    -- Try to create the view only if game_participants doesn't exist as a table
-    IF NOT EXISTS (
-        SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'game_participants'
-    ) AND NOT EXISTS (
-        SELECT FROM pg_views WHERE schemaname = 'public' AND viewname = 'game_participants'
-    ) THEN
-        -- Create game_participants as a table copy (not view, for full RLS support)
-        CREATE TABLE public.game_participants (
-            id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-            game_id uuid REFERENCES public.games(id) ON DELETE CASCADE NOT NULL,
-            user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-            status text DEFAULT 'joined' CHECK (status IN ('joined', 'left', 'waitlist')),
-            team text,
-            lineup_position_id text,
-            joined_at timestamptz DEFAULT now(),
-            created_at timestamptz DEFAULT now(),
-            UNIQUE(game_id, user_id)
-        );
+-- Enable PostGIS if not already enabled
+CREATE EXTENSION IF NOT EXISTS postgis;
 
-        -- Enable RLS
-        ALTER TABLE public.game_participants ENABLE ROW LEVEL SECURITY;
+-- ============================================
+-- STEP 1: Create tables if they don't exist
+-- ============================================
 
-        -- Simple, non-recursive policies
-        CREATE POLICY "game_participants_select_all" ON game_participants
-            FOR SELECT USING (true);
+-- Create profiles table
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id uuid REFERENCES auth.users NOT NULL PRIMARY KEY,
+    phone text UNIQUE,
+    full_name text,
+    avatar_url text,
+    city text,
+    favorite_position text,
+    position text,
+    bio text,
+    stats jsonb DEFAULT '{}'::jsonb,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
 
-        CREATE POLICY "game_participants_insert_own" ON game_participants
-            FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- Create games table
+CREATE TABLE IF NOT EXISTS public.games (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    organizer_id uuid REFERENCES public.profiles(id) NOT NULL,
+    title text NOT NULL,
+    description text,
+    location geography(Point),
+    address text,
+    start_time timestamptz NOT NULL,
+    format text NOT NULL,
+    max_players int NOT NULL,
+    current_players int DEFAULT 0,
+    status text DEFAULT 'open' CHECK (status IN ('open', 'full', 'cancelled', 'finished')),
+    image_url text,
+    created_at timestamptz DEFAULT now()
+);
 
-        CREATE POLICY "game_participants_update_own" ON game_participants
-            FOR UPDATE USING (auth.uid() = user_id);
+-- Create game_participants table (the app uses this name)
+CREATE TABLE IF NOT EXISTS public.game_participants (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    game_id uuid REFERENCES public.games(id) ON DELETE CASCADE NOT NULL,
+    user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    status text DEFAULT 'joined' CHECK (status IN ('joined', 'left', 'waitlist')),
+    team text,
+    lineup_position_id text,
+    joined_at timestamptz DEFAULT now(),
+    created_at timestamptz DEFAULT now(),
+    UNIQUE(game_id, user_id)
+);
 
-        CREATE POLICY "game_participants_delete_own" ON game_participants
-            FOR DELETE USING (auth.uid() = user_id);
+-- Create messages table
+CREATE TABLE IF NOT EXISTS public.messages (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    game_id uuid REFERENCES public.games(id) ON DELETE CASCADE NOT NULL,
+    user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    content text NOT NULL,
+    created_at timestamptz DEFAULT now()
+);
 
-        -- Copy existing data from participants if any
-        INSERT INTO public.game_participants (id, game_id, user_id, status, team, lineup_position_id, joined_at, created_at)
-        SELECT id, game_id, user_id, status, team, lineup_position_id, joined_at, created_at
-        FROM public.participants
-        ON CONFLICT DO NOTHING;
+-- ============================================
+-- STEP 2: Enable RLS on all tables
+-- ============================================
 
-        RAISE NOTICE 'Created game_participants table with simple RLS policies';
-    ELSE
-        RAISE NOTICE 'game_participants already exists, skipping creation';
-    END IF;
-END $$;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.game_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
--- Step 2: Add current_players column to games if it doesn't exist
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns
-        WHERE table_schema = 'public'
-        AND table_name = 'games'
-        AND column_name = 'current_players'
-    ) THEN
-        ALTER TABLE public.games ADD COLUMN current_players int DEFAULT 0;
-        RAISE NOTICE 'Added current_players column to games table';
-    END IF;
-END $$;
+-- ============================================
+-- STEP 3: Drop existing policies (if any)
+-- ============================================
 
--- Step 3: Create a function to count participants for a game
+-- Profiles policies
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone." ON profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile." ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile." ON profiles;
+DROP POLICY IF EXISTS "profiles_select_all" ON profiles;
+DROP POLICY IF EXISTS "profiles_insert_own" ON profiles;
+DROP POLICY IF EXISTS "profiles_update_own" ON profiles;
+
+-- Games policies
+DROP POLICY IF EXISTS "Games are viewable by everyone." ON games;
+DROP POLICY IF EXISTS "Authenticated users can create games." ON games;
+DROP POLICY IF EXISTS "Organizer can update their games." ON games;
+DROP POLICY IF EXISTS "games_select_all" ON games;
+DROP POLICY IF EXISTS "games_insert_authenticated" ON games;
+DROP POLICY IF EXISTS "games_update_organizer" ON games;
+DROP POLICY IF EXISTS "games_delete_organizer" ON games;
+
+-- Game participants policies
+DROP POLICY IF EXISTS "game_participants_select_all" ON game_participants;
+DROP POLICY IF EXISTS "game_participants_insert_own" ON game_participants;
+DROP POLICY IF EXISTS "game_participants_update_own" ON game_participants;
+DROP POLICY IF EXISTS "game_participants_delete_own" ON game_participants;
+
+-- Messages policies
+DROP POLICY IF EXISTS "Participants can view messages for their game." ON messages;
+DROP POLICY IF EXISTS "Participants can insert messages." ON messages;
+DROP POLICY IF EXISTS "messages_select_all" ON messages;
+DROP POLICY IF EXISTS "messages_insert_authenticated" ON messages;
+
+-- ============================================
+-- STEP 4: Create simple, non-recursive policies
+-- ============================================
+
+-- Profiles: Everyone can view, users manage their own
+CREATE POLICY "profiles_select_all" ON profiles FOR SELECT USING (true);
+CREATE POLICY "profiles_insert_own" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (auth.uid() = id);
+
+-- Games: Everyone can view, authenticated can create, organizer can update/delete
+CREATE POLICY "games_select_all" ON games FOR SELECT USING (true);
+CREATE POLICY "games_insert_authenticated" ON games FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "games_update_organizer" ON games FOR UPDATE USING (auth.uid() = organizer_id);
+CREATE POLICY "games_delete_organizer" ON games FOR DELETE USING (auth.uid() = organizer_id);
+
+-- Game participants: Everyone can view, users manage their own participation
+CREATE POLICY "game_participants_select_all" ON game_participants FOR SELECT USING (true);
+CREATE POLICY "game_participants_insert_own" ON game_participants FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "game_participants_update_own" ON game_participants FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "game_participants_delete_own" ON game_participants FOR DELETE USING (auth.uid() = user_id);
+
+-- Messages: Everyone can view, authenticated can insert
+CREATE POLICY "messages_select_all" ON messages FOR SELECT USING (true);
+CREATE POLICY "messages_insert_authenticated" ON messages FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- ============================================
+-- STEP 5: Create function to update player count
+-- ============================================
+
 CREATE OR REPLACE FUNCTION update_game_player_count()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -94,67 +159,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Step 4: Create trigger to auto-update player count
+-- Create trigger
 DROP TRIGGER IF EXISTS update_player_count_trigger ON game_participants;
 CREATE TRIGGER update_player_count_trigger
 AFTER INSERT OR UPDATE OR DELETE ON game_participants
 FOR EACH ROW
 EXECUTE FUNCTION update_game_player_count();
 
--- Step 5: Update the current count for all existing games
+-- ============================================
+-- STEP 6: Update current count for existing games
+-- ============================================
+
 UPDATE games g
 SET current_players = COALESCE((
     SELECT COUNT(*) FROM game_participants gp
     WHERE gp.game_id = g.id AND gp.status = 'joined'
 ), 0);
 
--- Step 6: Simplify games policies to prevent any potential recursion
--- Drop existing policies
-DROP POLICY IF EXISTS "Games are viewable by everyone." ON games;
-DROP POLICY IF EXISTS "Authenticated users can create games." ON games;
-DROP POLICY IF EXISTS "Organizer can update their games." ON games;
-
--- Recreate with simpler names and clearer logic
-CREATE POLICY "games_select_all" ON games
-    FOR SELECT USING (true);
-
-CREATE POLICY "games_insert_authenticated" ON games
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
-CREATE POLICY "games_update_organizer" ON games
-    FOR UPDATE USING (auth.uid() = organizer_id);
-
-CREATE POLICY "games_delete_organizer" ON games
-    FOR DELETE USING (auth.uid() = organizer_id);
-
--- Step 7: Simplify messages policies (these might cause indirect recursion)
-DROP POLICY IF EXISTS "Participants can view messages for their game." ON messages;
-DROP POLICY IF EXISTS "Participants can insert messages." ON messages;
-
--- Allow all authenticated users to view messages (simpler, less recursive)
-CREATE POLICY "messages_select_all" ON messages
-    FOR SELECT USING (true);
-
-CREATE POLICY "messages_insert_authenticated" ON messages
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
--- Step 8: Simplify votes policies
-DROP POLICY IF EXISTS "Votes are viewable by participants." ON votes;
-DROP POLICY IF EXISTS "Participants can vote." ON votes;
-DROP POLICY IF EXISTS "Users can delete their own votes" ON votes;
-DROP POLICY IF EXISTS "Users can update their own votes" ON votes;
-
-CREATE POLICY "votes_select_all" ON votes
-    FOR SELECT USING (true);
-
-CREATE POLICY "votes_insert_authenticated" ON votes
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = voter_id);
-
-CREATE POLICY "votes_update_own" ON votes
-    FOR UPDATE USING (auth.uid() = voter_id);
-
-CREATE POLICY "votes_delete_own" ON votes
-    FOR DELETE USING (auth.uid() = voter_id);
-
--- Done!
--- Run this script in your Supabase SQL Editor to fix the infinite recursion error.
+-- ============================================
+-- Done! The app should now work without errors.
+-- ============================================
