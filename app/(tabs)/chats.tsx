@@ -16,28 +16,34 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Game } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 
-// Apple-inspired color palette
+// Vibrant color palette
 const COLORS = {
-  primary: '#34C759',
-  primaryLight: '#30D158',
+  primary: '#00D26A',
+  primaryDark: '#00A855',
 
-  background: '#FFFFFF',
-  backgroundSecondary: '#F2F2F7',
+  bgDark: '#0A1A14',
+  bgMid: '#0D2818',
+  bgLight: '#14332A',
 
-  label: '#000000',
-  secondaryLabel: '#3C3C43',
-  tertiaryLabel: '#8E8E93',
-  quaternaryLabel: '#C7C7CC',
+  accent: '#00FFB3',
+  accentOrange: '#FF6B35',
+  accentPurple: '#A855F7',
+  accentBlue: '#38BDF8',
 
-  separator: '#E5E5EA',
-  systemGray6: '#F2F2F7',
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255, 255, 255, 0.7)',
+  textMuted: 'rgba(255, 255, 255, 0.5)',
 
-  blue: '#007AFF',
-  red: '#FF3B30',
+  cardBg: 'rgba(255, 255, 255, 0.08)',
+  cardBorder: 'rgba(255, 255, 255, 0.12)',
+  inputBg: 'rgba(255, 255, 255, 0.06)',
+
+  error: '#FF5252',
 };
 
 export default function ChatsScreen() {
@@ -174,7 +180,7 @@ export default function ChatsScreen() {
     } else if (minutes > 0) {
       return `לפני ${minutes} דקות`;
     } else {
-      return 'עכשיו';
+      return 'עכשיו 🔥';
     }
   };
 
@@ -193,7 +199,7 @@ export default function ChatsScreen() {
   };
 
   const ChatItem = ({ item, index }: { item: Game; index: number }) => (
-    <Animated.View entering={FadeInDown.delay(index * 50).duration(400)}>
+    <Animated.View entering={FadeInDown.delay(index * 60).duration(400)}>
       <TouchableOpacity
         style={styles.chatItem}
         onPress={() => {
@@ -201,11 +207,24 @@ export default function ChatsScreen() {
           router.push(`/game/${item.id}/chat`);
         }}
         onLongPress={() => handleHideChat(item.id)}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
+        <LinearGradient
+          colors={[COLORS.cardBg, 'rgba(255,255,255,0.04)']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+
         {/* Avatar */}
         <View style={styles.avatar}>
-          <Ionicons name="chatbubbles" size={22} color={COLORS.primary} />
+          <LinearGradient
+            colors={[COLORS.accent, COLORS.primary]}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+          <Ionicons name="chatbubbles" size={20} color={COLORS.bgDark} />
         </View>
 
         {/* Content */}
@@ -225,7 +244,7 @@ export default function ChatsScreen() {
         </View>
 
         {/* Arrow */}
-        <Ionicons name="chevron-back" size={16} color={COLORS.quaternaryLabel} />
+        <Ionicons name="chevron-back" size={20} color={COLORS.textMuted} />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -233,9 +252,9 @@ export default function ChatsScreen() {
   const EmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="chatbubbles-outline" size={40} color={COLORS.tertiaryLabel} />
+        <Ionicons name="chatbubbles-outline" size={48} color={COLORS.textMuted} />
       </View>
-      <Text style={styles.emptyTitle}>אין צ'אטים</Text>
+      <Text style={styles.emptyTitle}>אין צ'אטים עדיין 💬</Text>
       <Text style={styles.emptyMessage}>
         הצטרפו למשחק כדי להתחיל לשוחח עם שחקנים אחרים
       </Text>
@@ -244,18 +263,27 @@ export default function ChatsScreen() {
 
   return (
     <View style={styles.container}>
+      <LinearGradient
+        colors={[COLORS.bgDark, COLORS.bgMid, COLORS.bgLight]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
+      <View style={[styles.glowOrb, styles.glowOrb1]} />
+      <View style={[styles.glowOrb, styles.glowOrb2]} />
+
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Header */}
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
-          <Text style={styles.headerTitle}>צ'אטים</Text>
+          <Text style={styles.headerTitle}>צ'אטים 💬</Text>
 
           {/* Search */}
           <View style={styles.searchContainer}>
-            <Ionicons name="search" size={18} color={COLORS.tertiaryLabel} />
+            <Ionicons name="search" size={20} color={COLORS.textMuted} />
             <TextInput
               style={styles.searchInput}
               placeholder="חיפוש צ'אט..."
-              placeholderTextColor={COLORS.quaternaryLabel}
+              placeholderTextColor={COLORS.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
               selectionColor={COLORS.primary}
@@ -263,7 +291,7 @@ export default function ChatsScreen() {
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color={COLORS.tertiaryLabel} />
+                <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -278,8 +306,16 @@ export default function ChatsScreen() {
               }}
               activeOpacity={0.7}
             >
+              {activeTab === 'upcoming' && (
+                <LinearGradient
+                  colors={[COLORS.primary, COLORS.primaryDark]}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
+              )}
               <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>
-                פעילים
+                פעילים ⚡
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -290,6 +326,14 @@ export default function ChatsScreen() {
               }}
               activeOpacity={0.7}
             >
+              {activeTab === 'past' && (
+                <LinearGradient
+                  colors={[COLORS.primary, COLORS.primaryDark]}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
+              )}
               <Text style={[styles.tabText, activeTab === 'past' && styles.tabTextActive]}>
                 היסטוריה
               </Text>
@@ -297,10 +341,10 @@ export default function ChatsScreen() {
           </View>
         </Animated.View>
 
-        {/* Content */}
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>טוען צ'אטים...</Text>
           </View>
         ) : (
           <FlatList
@@ -317,7 +361,6 @@ export default function ChatsScreen() {
             }
             renderItem={({ item, index }) => <ChatItem item={item} index={index} />}
             ListEmptyComponent={<EmptyState />}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
           />
         )}
       </SafeAreaView>
@@ -328,7 +371,25 @@ export default function ChatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.bgDark,
+  },
+  glowOrb: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+  },
+  glowOrb1: {
+    top: 100,
+    right: -150,
+    backgroundColor: COLORS.accentBlue,
+    opacity: 0.08,
+  },
+  glowOrb2: {
+    bottom: 50,
+    left: -100,
+    backgroundColor: COLORS.primary,
+    opacity: 0.1,
   },
   safeArea: {
     flex: 1,
@@ -336,63 +397,58 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.separator,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: COLORS.label,
+    fontSize: 32,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
     textAlign: 'right',
-    letterSpacing: -0.5,
+    letterSpacing: 1,
     marginBottom: 16,
   },
   searchContainer: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    height: 44,
-    backgroundColor: COLORS.systemGray6,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    gap: 8,
-    marginBottom: 12,
+    height: 52,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    gap: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   searchInput: {
     flex: 1,
     height: '100%',
     fontSize: 16,
-    color: COLORS.label,
+    color: COLORS.textPrimary,
     textAlign: 'right',
   },
   tabsContainer: {
     flexDirection: 'row-reverse',
-    backgroundColor: COLORS.systemGray6,
-    borderRadius: 10,
-    padding: 3,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 16,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  tabActive: {
-    backgroundColor: COLORS.background,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
+  tabActive: {},
   tabText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.tertiaryLabel,
+    fontWeight: '600',
+    color: COLORS.textMuted,
   },
   tabTextActive: {
-    color: COLORS.label,
-    fontWeight: '600',
+    color: COLORS.bgDark,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -402,68 +458,73 @@ const styles = StyleSheet.create({
   chatItem: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    paddingVertical: 12,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    overflow: 'hidden',
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: COLORS.systemGray6,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   chatContent: {
     flex: 1,
-    marginRight: 12,
-    marginLeft: 8,
+    marginRight: 14,
+    marginLeft: 10,
   },
   chatHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   chatTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.label,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
     flex: 1,
     textAlign: 'right',
     marginLeft: 8,
   },
   chatTime: {
     fontSize: 12,
-    color: COLORS.tertiaryLabel,
+    color: COLORS.textMuted,
   },
   chatMeta: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   formatBadge: {
-    backgroundColor: COLORS.systemGray6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    backgroundColor: 'rgba(0, 210, 106, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   formatText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: COLORS.secondaryLabel,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   dateText: {
     fontSize: 13,
-    color: COLORS.tertiaryLabel,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: COLORS.separator,
-    marginRight: 62,
+    color: COLORS.textSecondary,
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -471,24 +532,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.systemGray6,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.label,
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
     marginBottom: 8,
   },
   emptyMessage: {
     fontSize: 14,
-    color: COLORS.tertiaryLabel,
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
   },
 });

@@ -18,26 +18,32 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-// Apple-inspired color palette
+// Vibrant color palette
 const COLORS = {
-  primary: '#34C759',
-  primaryDark: '#248A3D',
-  primaryLight: '#30D158',
+  primary: '#00D26A',
+  primaryDark: '#00A855',
+  primaryLight: '#00E676',
 
-  background: '#FFFFFF',
-  backgroundSecondary: '#F2F2F7',
+  bgDark: '#0A1A14',
+  bgMid: '#0D2818',
+  bgLight: '#14332A',
 
-  label: '#000000',
-  secondaryLabel: '#3C3C43',
-  tertiaryLabel: '#8E8E93',
-  quaternaryLabel: '#C7C7CC',
+  accent: '#00FFB3',
+  accentOrange: '#FF6B35',
+  accentPurple: '#A855F7',
+  accentBlue: '#38BDF8',
+  accentYellow: '#FBBF24',
 
-  separator: '#E5E5EA',
-  systemGray6: '#F2F2F7',
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255, 255, 255, 0.7)',
+  textMuted: 'rgba(255, 255, 255, 0.5)',
 
-  orange: '#FF9500',
-  red: '#FF3B30',
-  blue: '#007AFF',
+  cardBg: 'rgba(255, 255, 255, 0.08)',
+  cardBorder: 'rgba(255, 255, 255, 0.12)',
+
+  error: '#FF5252',
+  warning: '#FF9800',
+  success: '#00E676',
 };
 
 export default function HomeScreen() {
@@ -99,7 +105,7 @@ export default function HomeScreen() {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return 'היום';
+      return 'היום 🔥';
     } else if (date.toDateString() === tomorrow.toDateString()) {
       return 'מחר';
     }
@@ -114,60 +120,86 @@ export default function HomeScreen() {
     const spotsLeft = item.max_players - (item.current_players || 0);
     const isFilling = spotsLeft <= 3 && spotsLeft > 0;
     const isFull = spotsLeft <= 0;
+    const isToday = new Date(item.start_time).toDateString() === new Date().toDateString();
 
     return (
-      <Animated.View entering={FadeInDown.delay(index * 50).duration(400)}>
+      <Animated.View entering={FadeInDown.delay(index * 80).duration(500)}>
         <TouchableOpacity
           style={styles.gameCard}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.push(`/game/${item.id}`);
           }}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
         >
-          {/* Date/Time Column */}
-          <View style={styles.dateColumn}>
-            <Text style={styles.dateText}>{formatDate(item.start_time)}</Text>
-            <Text style={styles.timeText}>{formatTime(item.start_time)}</Text>
-          </View>
+          <LinearGradient
+            colors={[COLORS.cardBg, 'rgba(255,255,255,0.04)']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
 
-          {/* Divider */}
-          <View style={styles.cardDivider} />
+          {/* Live indicator for today's games */}
+          {isToday && (
+            <View style={styles.liveIndicator}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>היום</Text>
+            </View>
+          )}
 
-          {/* Content */}
-          <View style={styles.cardContent}>
-            <View style={styles.cardHeader}>
+          {/* Top Row */}
+          <View style={styles.cardTop}>
+            <View style={styles.cardInfo}>
               <Text style={styles.gameTitle} numberOfLines={1}>{item.title}</Text>
-              <View style={[
-                styles.formatBadge,
-                isFull && styles.formatBadgeFull,
-                isFilling && styles.formatBadgeFilling,
-              ]}>
-                <Text style={[
-                  styles.formatText,
-                  isFull && styles.formatTextFull,
-                  isFilling && styles.formatTextFilling,
-                ]}>
-                  {item.format}
-                </Text>
+              <View style={styles.metaRow}>
+                <View style={styles.metaItem}>
+                  <Ionicons name="time" size={14} color={COLORS.accent} />
+                  <Text style={styles.metaText}>{formatTime(item.start_time)}</Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <Ionicons name="calendar" size={14} color={COLORS.accentBlue} />
+                  <Text style={styles.metaText}>{formatDate(item.start_time)}</Text>
+                </View>
               </View>
             </View>
 
-            {item.address && (
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={14} color={COLORS.tertiaryLabel} />
-                <Text style={styles.locationText} numberOfLines={1}>
-                  {item.address.split(',')[0]}
-                </Text>
-              </View>
-            )}
+            <View style={[
+              styles.formatBadge,
+              isFull && styles.formatBadgeFull,
+              isFilling && styles.formatBadgeFilling,
+            ]}>
+              <Text style={[
+                styles.formatText,
+                isFull && styles.formatTextFull,
+                isFilling && styles.formatTextFilling,
+              ]}>
+                {item.format}
+              </Text>
+            </View>
+          </View>
 
-            <View style={styles.cardFooter}>
-              <View style={styles.playersInfo}>
+          {/* Location */}
+          {item.address && (
+            <View style={styles.locationRow}>
+              <Ionicons name="location" size={14} color={COLORS.textMuted} />
+              <Text style={styles.locationText} numberOfLines={1}>
+                {item.address.split(',')[0]}
+              </Text>
+            </View>
+          )}
+
+          {/* Bottom Row */}
+          <View style={styles.cardBottom}>
+            <View style={styles.playersContainer}>
+              <View style={[
+                styles.playersBadge,
+                isFull && styles.playersBadgeFull,
+                isFilling && styles.playersBadgeFilling,
+              ]}>
                 <Ionicons
-                  name="people-outline"
-                  size={14}
-                  color={isFull ? COLORS.red : isFilling ? COLORS.orange : COLORS.primary}
+                  name="people"
+                  size={16}
+                  color={isFull ? COLORS.error : isFilling ? COLORS.warning : COLORS.primary}
                 />
                 <Text style={[
                   styles.playersText,
@@ -176,14 +208,17 @@ export default function HomeScreen() {
                 ]}>
                   {item.current_players || 0}/{item.max_players}
                 </Text>
-                {isFilling && !isFull && (
-                  <Text style={styles.fillingText}>נשארו {spotsLeft} מקומות</Text>
-                )}
-                {isFull && (
-                  <Text style={styles.fullText}>מלא</Text>
-                )}
               </View>
-              <Ionicons name="chevron-back" size={16} color={COLORS.quaternaryLabel} />
+              {isFilling && !isFull && (
+                <Text style={styles.fillingText}>⚡ ממלא מהר!</Text>
+              )}
+              {isFull && (
+                <Text style={styles.fullText}>מלא</Text>
+              )}
+            </View>
+
+            <View style={styles.arrowContainer}>
+              <Ionicons name="arrow-back-circle" size={28} color={COLORS.primary} />
             </View>
           </View>
         </TouchableOpacity>
@@ -194,11 +229,16 @@ export default function HomeScreen() {
   const EmptyState = () => (
     <Animated.View entering={FadeIn.delay(200)} style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="football-outline" size={48} color={COLORS.tertiaryLabel} />
+        <LinearGradient
+          colors={[COLORS.primary, COLORS.primaryDark]}
+          style={styles.emptyIconGradient}
+        >
+          <Ionicons name="football" size={48} color="white" />
+        </LinearGradient>
       </View>
-      <Text style={styles.emptyTitle}>אין משחקים קרובים</Text>
+      <Text style={styles.emptyTitle}>אין משחקים עדיין 😢</Text>
       <Text style={styles.emptyMessage}>
-        היו הראשונים ליצור משחק באזור שלכם
+        היו הראשונים ליצור משחק באזור שלכם!
       </Text>
       <TouchableOpacity
         style={styles.emptyButton}
@@ -208,8 +248,15 @@ export default function HomeScreen() {
         }}
         activeOpacity={0.8}
       >
-        <Ionicons name="add" size={20} color="white" />
-        <Text style={styles.emptyButtonText}>יצירת משחק</Text>
+        <LinearGradient
+          colors={[COLORS.accent, COLORS.primary]}
+          style={styles.emptyButtonGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <Ionicons name="add" size={22} color={COLORS.bgDark} />
+          <Text style={styles.emptyButtonText}>יצירת משחק</Text>
+        </LinearGradient>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -217,17 +264,34 @@ export default function HomeScreen() {
   const LoadingState = () => (
     <View style={styles.loadingContainer}>
       <ActivityIndicator size="large" color={COLORS.primary} />
+      <Text style={styles.loadingText}>טוען משחקים...</Text>
     </View>
   );
 
+  const todayGamesCount = games.filter(g => {
+    const date = new Date(g.start_time);
+    return date.toDateString() === new Date().toDateString();
+  }).length;
+
   return (
     <View style={styles.container}>
+      <LinearGradient
+        colors={[COLORS.bgDark, COLORS.bgMid, COLORS.bgLight]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
+      {/* Decorative orbs */}
+      <View style={[styles.glowOrb, styles.glowOrb1]} />
+      <View style={[styles.glowOrb, styles.glowOrb2]} />
+
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         {/* Header */}
         <Animated.View entering={FadeInUp.duration(500)} style={styles.header}>
           <View style={styles.headerTop}>
             <View>
-              <Text style={styles.greeting}>שלום</Text>
+              <Text style={styles.greeting}>היי! 👋</Text>
               <Text style={styles.headerTitle}>כדור</Text>
             </View>
             <TouchableOpacity
@@ -239,31 +303,35 @@ export default function HomeScreen() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={[COLORS.primaryLight, COLORS.primary]}
+                colors={[COLORS.accent, COLORS.primary]}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               />
-              <Ionicons name="add" size={24} color="white" />
+              <Ionicons name="add" size={26} color={COLORS.bgDark} />
             </TouchableOpacity>
           </View>
 
-          {/* Quick Stats */}
+          {/* Stats Cards */}
           {games.length > 0 && (
             <View style={styles.statsRow}>
-              <View style={styles.statItem}>
+              <View style={[styles.statCard, styles.statCardPrimary]}>
+                <LinearGradient
+                  colors={[COLORS.primary + '30', COLORS.primary + '10']}
+                  style={StyleSheet.absoluteFill}
+                />
                 <Text style={styles.statNumber}>{games.length}</Text>
                 <Text style={styles.statLabel}>משחקים פתוחים</Text>
+                <Ionicons name="football" size={20} color={COLORS.primary} style={styles.statIcon} />
               </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
-                  {games.filter(g => {
-                    const date = new Date(g.start_time);
-                    return date.toDateString() === new Date().toDateString();
-                  }).length}
-                </Text>
+              <View style={[styles.statCard, styles.statCardAccent]}>
+                <LinearGradient
+                  colors={[COLORS.accentOrange + '30', COLORS.accentOrange + '10']}
+                  style={StyleSheet.absoluteFill}
+                />
+                <Text style={[styles.statNumber, { color: COLORS.accentOrange }]}>{todayGamesCount}</Text>
                 <Text style={styles.statLabel}>היום</Text>
+                <Ionicons name="flame" size={20} color={COLORS.accentOrange} style={styles.statIcon} />
               </View>
             </View>
           )}
@@ -272,13 +340,16 @@ export default function HomeScreen() {
         {/* Section Header */}
         {!loading && games.length > 0 && (
           <Animated.View entering={FadeIn.delay(200)} style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>משחקים קרובים</Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>משחקים קרובים</Text>
+              <Text style={styles.sectionEmoji}>⚽</Text>
+            </View>
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/explore')}
               style={styles.seeAllButton}
             >
               <Text style={styles.seeAllText}>הכל</Text>
-              <Ionicons name="chevron-back" size={14} color={COLORS.primary} />
+              <Ionicons name="chevron-back" size={16} color={COLORS.accent} />
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -312,7 +383,25 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.bgDark,
+  },
+  glowOrb: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+  },
+  glowOrb1: {
+    top: -100,
+    right: -100,
+    backgroundColor: COLORS.primary,
+    opacity: 0.1,
+  },
+  glowOrb2: {
+    bottom: 200,
+    left: -150,
+    backgroundColor: COLORS.accentBlue,
+    opacity: 0.08,
   },
   safeArea: {
     flex: 1,
@@ -320,9 +409,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.separator,
+    paddingBottom: 20,
   },
   headerTop: {
     flexDirection: 'row-reverse',
@@ -330,207 +417,256 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   greeting: {
-    fontSize: 14,
-    color: COLORS.tertiaryLabel,
+    fontSize: 16,
+    color: COLORS.textSecondary,
     textAlign: 'right',
   },
   headerTitle: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: COLORS.label,
+    fontSize: 36,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
     textAlign: 'right',
-    letterSpacing: -0.5,
+    letterSpacing: 1,
   },
   createButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
   },
   statsRow: {
     flexDirection: 'row-reverse',
-    marginTop: 16,
-    backgroundColor: COLORS.systemGray6,
-    borderRadius: 12,
-    padding: 12,
+    marginTop: 20,
+    gap: 12,
   },
-  statItem: {
+  statCard: {
     flex: 1,
-    alignItems: 'center',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    overflow: 'hidden',
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: COLORS.separator,
-    marginHorizontal: 12,
-  },
+  statCardPrimary: {},
+  statCardAccent: {},
   statNumber: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.label,
+    fontSize: 32,
+    fontWeight: '800',
+    color: COLORS.primary,
   },
   statLabel: {
-    fontSize: 12,
-    color: COLORS.tertiaryLabel,
-    marginTop: 2,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  statIcon: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    opacity: 0.5,
   },
   sectionHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
     paddingBottom: 12,
   },
+  sectionTitleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
   sectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  sectionEmoji: {
     fontSize: 20,
-    fontWeight: '600',
-    color: COLORS.label,
   },
   seeAllButton: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 2,
+    gap: 4,
   },
   seeAllText: {
     fontSize: 14,
-    color: COLORS.primary,
-    fontWeight: '500',
+    color: COLORS.accent,
+    fontWeight: '600',
   },
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 100,
   },
   gameCard: {
-    flexDirection: 'row-reverse',
-    backgroundColor: COLORS.background,
-    borderRadius: 16,
-    marginBottom: 12,
-    padding: 16,
+    borderRadius: 20,
+    marginBottom: 16,
+    padding: 18,
     borderWidth: 1,
-    borderColor: COLORS.separator,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: COLORS.cardBorder,
+    overflow: 'hidden',
   },
-  dateColumn: {
-    width: 56,
+  liveIndicator: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 210, 106, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
-  dateText: {
-    fontSize: 12,
-    color: COLORS.tertiaryLabel,
-    fontWeight: '500',
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
   },
-  timeText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.label,
-    marginTop: 2,
+  liveText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
-  cardDivider: {
-    width: 1,
-    backgroundColor: COLORS.separator,
-    marginHorizontal: 12,
-  },
-  cardContent: {
-    flex: 1,
-  },
-  cardHeader: {
+  cardTop: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  cardInfo: {
+    flex: 1,
+    marginLeft: 12,
   },
   gameTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.label,
-    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
     textAlign: 'right',
-    marginLeft: 8,
+    marginBottom: 8,
+  },
+  metaRow: {
+    flexDirection: 'row-reverse',
+    gap: 16,
+  },
+  metaItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  metaText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
   },
   formatBadge: {
-    backgroundColor: COLORS.systemGray6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    backgroundColor: 'rgba(0, 210, 106, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 106, 0.3)',
   },
   formatBadgeFilling: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: 'rgba(255, 152, 0, 0.15)',
+    borderColor: 'rgba(255, 152, 0, 0.3)',
   },
   formatBadgeFull: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: 'rgba(255, 82, 82, 0.15)',
+    borderColor: 'rgba(255, 82, 82, 0.3)',
   },
   formatText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.secondaryLabel,
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   formatTextFilling: {
-    color: COLORS.orange,
+    color: COLORS.warning,
   },
   formatTextFull: {
-    color: COLORS.red,
+    color: COLORS.error,
   },
   locationRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 4,
-    marginBottom: 8,
+    gap: 6,
+    marginBottom: 14,
   },
   locationText: {
     fontSize: 13,
-    color: COLORS.tertiaryLabel,
+    color: COLORS.textMuted,
     flex: 1,
     textAlign: 'right',
   },
-  cardFooter: {
+  cardBottom: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.cardBorder,
   },
-  playersInfo: {
+  playersContainer: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 4,
+    gap: 10,
+  },
+  playersBadge: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 210, 106, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  playersBadgeFilling: {
+    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+  },
+  playersBadgeFull: {
+    backgroundColor: 'rgba(255, 82, 82, 0.1)',
   },
   playersText: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '700',
     color: COLORS.primary,
   },
   playersTextFilling: {
-    color: COLORS.orange,
+    color: COLORS.warning,
   },
   playersTextFull: {
-    color: COLORS.red,
+    color: COLORS.error,
   },
   fillingText: {
     fontSize: 12,
-    color: COLORS.orange,
-    fontWeight: '500',
-    marginRight: 4,
+    color: COLORS.warning,
+    fontWeight: '600',
   },
   fullText: {
     fontSize: 12,
-    color: COLORS.red,
-    fontWeight: '500',
-    marginRight: 4,
+    color: COLORS.error,
+    fontWeight: '600',
+  },
+  arrowContainer: {
+    opacity: 0.8,
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
   },
   emptyContainer: {
     flex: 1,
@@ -539,44 +675,52 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyIconContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: COLORS.systemGray6,
+    marginBottom: 24,
+  },
+  emptyIconGradient: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: COLORS.label,
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
     marginBottom: 8,
   },
   emptyMessage: {
     fontSize: 15,
-    color: COLORS.tertiaryLabel,
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
+    lineHeight: 24,
+    marginBottom: 28,
   },
   emptyButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  emptyButtonGradient: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    gap: 8,
+    paddingHorizontal: 28,
+    paddingVertical: 16,
   },
   emptyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.bgDark,
   },
 });

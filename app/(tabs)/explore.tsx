@@ -15,28 +15,35 @@ import { supabase } from '../../lib/supabase';
 import { Game } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-// Apple-inspired color palette
+// Vibrant color palette
 const COLORS = {
-  primary: '#34C759',
-  primaryLight: '#30D158',
+  primary: '#00D26A',
+  primaryDark: '#00A855',
+  primaryLight: '#00E676',
 
-  background: '#FFFFFF',
-  backgroundSecondary: '#F2F2F7',
+  bgDark: '#0A1A14',
+  bgMid: '#0D2818',
+  bgLight: '#14332A',
 
-  label: '#000000',
-  secondaryLabel: '#3C3C43',
-  tertiaryLabel: '#8E8E93',
-  quaternaryLabel: '#C7C7CC',
+  accent: '#00FFB3',
+  accentOrange: '#FF6B35',
+  accentPurple: '#A855F7',
+  accentBlue: '#38BDF8',
 
-  separator: '#E5E5EA',
-  systemGray6: '#F2F2F7',
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255, 255, 255, 0.7)',
+  textMuted: 'rgba(255, 255, 255, 0.5)',
 
-  orange: '#FF9500',
-  red: '#FF3B30',
-  blue: '#007AFF',
+  cardBg: 'rgba(255, 255, 255, 0.08)',
+  cardBorder: 'rgba(255, 255, 255, 0.12)',
+  inputBg: 'rgba(255, 255, 255, 0.06)',
+
+  error: '#FF5252',
+  warning: '#FF9800',
 };
 
 export default function ExploreScreen() {
@@ -126,7 +133,7 @@ export default function ExploreScreen() {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return 'היום';
+      return 'היום 🔥';
     } else if (date.toDateString() === tomorrow.toDateString()) {
       return 'מחר';
     }
@@ -146,6 +153,14 @@ export default function ExploreScreen() {
       }}
       activeOpacity={0.7}
     >
+      {selected && (
+        <LinearGradient
+          colors={[COLORS.primary, COLORS.primaryDark]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+      )}
       <Text style={[styles.filterChipText, selected && styles.filterChipTextSelected]}>
         {label}
       </Text>
@@ -158,31 +173,38 @@ export default function ExploreScreen() {
     const isFull = spotsLeft <= 0;
 
     return (
-      <Animated.View entering={FadeInDown.delay(index * 50).duration(400)}>
+      <Animated.View entering={FadeInDown.delay(index * 60).duration(400)}>
         <TouchableOpacity
           style={styles.gameCard}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.push(`/game/${item.id}`);
           }}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
         >
+          <LinearGradient
+            colors={[COLORS.cardBg, 'rgba(255,255,255,0.04)']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+
           <View style={styles.cardTop}>
             <View style={styles.cardInfo}>
               <Text style={styles.gameTitle} numberOfLines={1}>{item.title}</Text>
               <View style={styles.metaRow}>
                 <View style={styles.metaItem}>
-                  <Ionicons name="calendar-outline" size={13} color={COLORS.tertiaryLabel} />
-                  <Text style={styles.metaText}>{formatDate(item.start_time)}</Text>
+                  <Ionicons name="time" size={13} color={COLORS.accent} />
+                  <Text style={styles.metaText}>{formatTime(item.start_time)}</Text>
                 </View>
                 <View style={styles.metaItem}>
-                  <Ionicons name="time-outline" size={13} color={COLORS.tertiaryLabel} />
-                  <Text style={styles.metaText}>{formatTime(item.start_time)}</Text>
+                  <Ionicons name="calendar" size={13} color={COLORS.accentBlue} />
+                  <Text style={styles.metaText}>{formatDate(item.start_time)}</Text>
                 </View>
               </View>
               {item.address && (
                 <View style={styles.metaItem}>
-                  <Ionicons name="location-outline" size={13} color={COLORS.tertiaryLabel} />
+                  <Ionicons name="location" size={13} color={COLORS.textMuted} />
                   <Text style={styles.locationText} numberOfLines={1}>
                     {item.address.split(',')[0]}
                   </Text>
@@ -213,9 +235,9 @@ export default function ExploreScreen() {
           <View style={styles.cardFooter}>
             <View style={styles.playersInfo}>
               <Ionicons
-                name="people-outline"
-                size={14}
-                color={isFull ? COLORS.red : isFilling ? COLORS.orange : COLORS.primary}
+                name="people"
+                size={16}
+                color={isFull ? COLORS.error : isFilling ? COLORS.warning : COLORS.primary}
               />
               <Text style={[
                 styles.playersText,
@@ -225,13 +247,13 @@ export default function ExploreScreen() {
                 {item.current_players || 0}/{item.max_players}
               </Text>
               {isFilling && !isFull && (
-                <Text style={styles.fillingBadge}>ממלא מהר</Text>
+                <Text style={styles.fillingBadge}>⚡ ממלא מהר</Text>
               )}
               {isFull && (
                 <Text style={styles.fullBadge}>מלא</Text>
               )}
             </View>
-            <Ionicons name="chevron-back" size={16} color={COLORS.quaternaryLabel} />
+            <Ionicons name="arrow-back-circle" size={24} color={COLORS.primary} />
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -241,28 +263,37 @@ export default function ExploreScreen() {
   const EmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="search-outline" size={40} color={COLORS.tertiaryLabel} />
+        <Ionicons name="search" size={40} color={COLORS.textMuted} />
       </View>
-      <Text style={styles.emptyTitle}>לא נמצאו משחקים</Text>
+      <Text style={styles.emptyTitle}>לא נמצאו משחקים 🔍</Text>
       <Text style={styles.emptyMessage}>נסו לשנות את הפילטרים או לחפש משהו אחר</Text>
     </View>
   );
 
   return (
     <View style={styles.container}>
+      <LinearGradient
+        colors={[COLORS.bgDark, COLORS.bgMid, COLORS.bgLight]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
+      <View style={[styles.glowOrb, styles.glowOrb1]} />
+      <View style={[styles.glowOrb, styles.glowOrb2]} />
+
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Header */}
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
-          <Text style={styles.headerTitle}>חיפוש</Text>
+          <Text style={styles.headerTitle}>חיפוש 🔎</Text>
           <Text style={styles.headerSubtitle}>מצאו משחקים באזור שלכם</Text>
 
           {/* Search Bar */}
           <View style={styles.searchContainer}>
-            <Ionicons name="search" size={18} color={COLORS.tertiaryLabel} />
+            <Ionicons name="search" size={20} color={COLORS.textMuted} />
             <TextInput
               style={styles.searchInput}
               placeholder="חיפוש משחק, מיקום..."
-              placeholderTextColor={COLORS.quaternaryLabel}
+              placeholderTextColor={COLORS.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
               selectionColor={COLORS.primary}
@@ -270,7 +301,7 @@ export default function ExploreScreen() {
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color={COLORS.tertiaryLabel} />
+                <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -298,16 +329,15 @@ export default function ExploreScreen() {
             <FilterChip label="מחר" selected={selectedDate === 'מחר'} onPress={() => setSelectedDate('מחר')} />
           </ScrollView>
 
-          {/* Results count */}
           <Text style={styles.resultsCount}>
             {filteredGames.length} {filteredGames.length === 1 ? 'משחק נמצא' : 'משחקים נמצאו'}
           </Text>
         </Animated.View>
 
-        {/* Content */}
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>מחפש משחקים...</Text>
           </View>
         ) : (
           <FlatList
@@ -334,7 +364,25 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.bgDark,
+  },
+  glowOrb: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+  },
+  glowOrb1: {
+    top: -50,
+    left: -100,
+    backgroundColor: COLORS.accentPurple,
+    opacity: 0.08,
+  },
+  glowOrb2: {
+    bottom: 100,
+    right: -100,
+    backgroundColor: COLORS.primary,
+    opacity: 0.1,
   },
   safeArea: {
     flex: 1,
@@ -343,84 +391,82 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.separator,
   },
   headerTitle: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: COLORS.label,
+    fontSize: 32,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
     textAlign: 'right',
-    letterSpacing: -0.5,
+    letterSpacing: 1,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: COLORS.tertiaryLabel,
+    color: COLORS.textSecondary,
     textAlign: 'right',
     marginBottom: 16,
   },
   searchContainer: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    height: 44,
-    backgroundColor: COLORS.systemGray6,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    gap: 8,
-    marginBottom: 12,
+    height: 52,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    gap: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   searchInput: {
     flex: 1,
     height: '100%',
     fontSize: 16,
-    color: COLORS.label,
+    color: COLORS.textPrimary,
     textAlign: 'right',
   },
   filtersRow: {
     flexDirection: 'row-reverse',
-    gap: 8,
-    paddingVertical: 4,
+    gap: 10,
+    paddingVertical: 6,
   },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.systemGray6,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 25,
+    backgroundColor: COLORS.inputBg,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    overflow: 'hidden',
   },
   filterChipSelected: {
-    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   filterChipText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.secondaryLabel,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
   },
   filterChipTextSelected: {
-    color: 'white',
+    color: COLORS.bgDark,
   },
   resultsCount: {
     fontSize: 13,
-    color: COLORS.tertiaryLabel,
+    color: COLORS.textMuted,
     textAlign: 'right',
-    marginTop: 8,
+    marginTop: 12,
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 100,
   },
   gameCard: {
-    backgroundColor: COLORS.background,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: COLORS.separator,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: COLORS.cardBorder,
+    overflow: 'hidden',
   },
   cardTop: {
     flexDirection: 'row-reverse',
@@ -433,102 +479,109 @@ const styles = StyleSheet.create({
   },
   gameTitle: {
     fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.label,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
     textAlign: 'right',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   metaRow: {
     flexDirection: 'row-reverse',
-    gap: 12,
-    marginBottom: 4,
+    gap: 14,
+    marginBottom: 6,
   },
   metaItem: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   metaText: {
     fontSize: 13,
-    color: COLORS.tertiaryLabel,
+    color: COLORS.textSecondary,
   },
   locationText: {
     fontSize: 13,
-    color: COLORS.tertiaryLabel,
+    color: COLORS.textMuted,
     flex: 1,
     textAlign: 'right',
   },
   formatBadge: {
-    backgroundColor: COLORS.systemGray6,
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(0, 210, 106, 0.15)',
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 106, 0.3)',
   },
   formatBadgeFilling: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: 'rgba(255, 152, 0, 0.15)',
+    borderColor: 'rgba(255, 152, 0, 0.3)',
   },
   formatBadgeFull: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: 'rgba(255, 82, 82, 0.15)',
+    borderColor: 'rgba(255, 82, 82, 0.3)',
   },
   formatText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.secondaryLabel,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   formatTextFilling: {
-    color: COLORS.orange,
+    color: COLORS.warning,
   },
   formatTextFull: {
-    color: COLORS.red,
+    color: COLORS.error,
   },
   description: {
     fontSize: 14,
-    color: COLORS.secondaryLabel,
+    color: COLORS.textSecondary,
     textAlign: 'right',
-    marginTop: 8,
+    marginTop: 10,
     lineHeight: 20,
   },
   cardFooter: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 14,
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: COLORS.separator,
+    borderTopColor: COLORS.cardBorder,
   },
   playersInfo: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   playersText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '700',
     color: COLORS.primary,
   },
   playersTextFilling: {
-    color: COLORS.orange,
+    color: COLORS.warning,
   },
   playersTextFull: {
-    color: COLORS.red,
+    color: COLORS.error,
   },
   fillingBadge: {
     fontSize: 12,
-    color: COLORS.orange,
-    fontWeight: '500',
-    marginRight: 4,
+    color: COLORS.warning,
+    fontWeight: '600',
   },
   fullBadge: {
     fontSize: 12,
-    color: COLORS.red,
-    fontWeight: '500',
-    marginRight: 4,
+    color: COLORS.error,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -539,20 +592,20 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: COLORS.systemGray6,
+    backgroundColor: COLORS.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.label,
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
     marginBottom: 8,
   },
   emptyMessage: {
     fontSize: 14,
-    color: COLORS.tertiaryLabel,
+    color: COLORS.textSecondary,
     textAlign: 'center',
   },
 });

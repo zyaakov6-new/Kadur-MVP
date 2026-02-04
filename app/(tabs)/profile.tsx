@@ -18,26 +18,31 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-// Apple-inspired color palette
+// Vibrant color palette
 const COLORS = {
-  primary: '#34C759',
-  primaryLight: '#30D158',
+  primary: '#00D26A',
+  primaryDark: '#00A855',
+  primaryLight: '#00E676',
 
-  background: '#FFFFFF',
-  backgroundSecondary: '#F2F2F7',
+  bgDark: '#0A1A14',
+  bgMid: '#0D2818',
+  bgLight: '#14332A',
 
-  label: '#000000',
-  secondaryLabel: '#3C3C43',
-  tertiaryLabel: '#8E8E93',
-  quaternaryLabel: '#C7C7CC',
-
-  separator: '#E5E5EA',
-  systemGray6: '#F2F2F7',
-
-  orange: '#FF9500',
-  red: '#FF3B30',
-  blue: '#007AFF',
+  accent: '#00FFB3',
+  accentOrange: '#FF6B35',
+  accentPurple: '#A855F7',
+  accentBlue: '#38BDF8',
+  accentYellow: '#FBBF24',
   gold: '#FFD700',
+
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255, 255, 255, 0.7)',
+  textMuted: 'rgba(255, 255, 255, 0.5)',
+
+  cardBg: 'rgba(255, 255, 255, 0.08)',
+  cardBorder: 'rgba(255, 255, 255, 0.12)',
+
+  error: '#FF5252',
 };
 
 export default function ProfileScreen() {
@@ -90,7 +95,12 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
+        <LinearGradient
+          colors={[COLORS.bgDark, COLORS.bgMid, COLORS.bgLight]}
+          style={StyleSheet.absoluteFill}
+        />
         <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>טוען פרופיל...</Text>
       </View>
     );
   }
@@ -111,7 +121,7 @@ export default function ProfileScreen() {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return 'היום';
+      return 'היום 🔥';
     } else if (date.toDateString() === tomorrow.toDateString()) {
       return 'מחר';
     }
@@ -120,6 +130,16 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
+      <LinearGradient
+        colors={[COLORS.bgDark, COLORS.bgMid, COLORS.bgLight]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
+      <View style={[styles.glowOrb, styles.glowOrb1]} />
+      <View style={[styles.glowOrb, styles.glowOrb2]} />
+
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView
           style={styles.scrollView}
@@ -128,7 +148,7 @@ export default function ProfileScreen() {
         >
           {/* Header */}
           <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
-            <Text style={styles.headerTitle}>פרופיל</Text>
+            <Text style={styles.headerTitle}>פרופיל 👤</Text>
             <TouchableOpacity
               style={styles.settingsButton}
               onPress={() => {
@@ -136,16 +156,25 @@ export default function ProfileScreen() {
                 router.push('/profile/edit');
               }}
             >
-              <Ionicons name="settings-outline" size={22} color={COLORS.tertiaryLabel} />
+              <Ionicons name="settings-outline" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </Animated.View>
 
           {/* Profile Card */}
           <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.profileCard}>
+            <LinearGradient
+              colors={[COLORS.cardBg, 'rgba(255,255,255,0.04)']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+
             <View style={styles.avatarContainer}>
               <LinearGradient
-                colors={[COLORS.primaryLight, COLORS.primary]}
+                colors={[COLORS.accent, COLORS.primary, COLORS.primaryDark]}
                 style={styles.avatarGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
               >
                 {profile?.avatar_url ? (
                   <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
@@ -161,7 +190,7 @@ export default function ProfileScreen() {
 
             {profile?.city && (
               <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={14} color={COLORS.tertiaryLabel} />
+                <Ionicons name="location" size={16} color={COLORS.accentBlue} />
                 <Text style={styles.locationText}>{profile.city}</Text>
               </View>
             )}
@@ -169,27 +198,26 @@ export default function ProfileScreen() {
             {/* Stats */}
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
+                <Ionicons name="football" size={20} color={COLORS.primary} style={styles.statIcon} />
                 <Text style={styles.statValue}>{history.length}</Text>
                 <Text style={styles.statLabel}>משחקים</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile?.stats?.goals || 0}</Text>
+                <Ionicons name="flash" size={20} color={COLORS.accentOrange} style={styles.statIcon} />
+                <Text style={[styles.statValue, { color: COLORS.accentOrange }]}>{profile?.stats?.goals || 0}</Text>
                 <Text style={styles.statLabel}>שערים</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile?.stats?.assists || 0}</Text>
+                <Ionicons name="hand-right" size={20} color={COLORS.accentBlue} style={styles.statIcon} />
+                <Text style={[styles.statValue, { color: COLORS.accentBlue }]}>{profile?.stats?.assists || 0}</Text>
                 <Text style={styles.statLabel}>בישולים</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <View style={styles.mvpIcon}>
-                  <Ionicons name="trophy" size={14} color={COLORS.gold} />
-                </View>
-                <Text style={[styles.statValue, { color: COLORS.gold }]}>
-                  {profile?.stats?.mvps || 0}
-                </Text>
+                <Ionicons name="trophy" size={20} color={COLORS.gold} style={styles.statIcon} />
+                <Text style={[styles.statValue, { color: COLORS.gold }]}>{profile?.stats?.mvps || 0}</Text>
                 <Text style={styles.statLabel}>MVP</Text>
               </View>
             </View>
@@ -197,7 +225,7 @@ export default function ProfileScreen() {
 
           {/* Games Section */}
           <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.section}>
-            <Text style={styles.sectionTitle}>המשחקים שלי</Text>
+            <Text style={styles.sectionTitle}>המשחקים שלי ⚽</Text>
 
             {/* Tabs */}
             <View style={styles.tabsContainer}>
@@ -209,8 +237,16 @@ export default function ProfileScreen() {
                 }}
                 activeOpacity={0.7}
               >
+                {activeTab === 'upcoming' && (
+                  <LinearGradient
+                    colors={[COLORS.primary, COLORS.primaryDark]}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                )}
                 <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>
-                  קרובים
+                  קרובים ⚡
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -221,6 +257,14 @@ export default function ProfileScreen() {
                 }}
                 activeOpacity={0.7}
               >
+                {activeTab === 'past' && (
+                  <LinearGradient
+                    colors={[COLORS.primary, COLORS.primaryDark]}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                )}
                 <Text style={[styles.tabText, activeTab === 'past' && styles.tabTextActive]}>
                   היסטוריה
                 </Text>
@@ -240,26 +284,26 @@ export default function ProfileScreen() {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       router.push(`/game/${game.id}`);
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                   >
                     <View style={styles.gameInfo}>
                       <Text style={styles.gameTitle} numberOfLines={1}>{game.title}</Text>
                       <View style={styles.gameMeta}>
-                        <Ionicons name="calendar-outline" size={13} color={COLORS.tertiaryLabel} />
+                        <Ionicons name="calendar" size={14} color={COLORS.accentBlue} />
                         <Text style={styles.gameDate}>{formatDate(game.start_time)}</Text>
                       </View>
                     </View>
                     <View style={styles.formatBadge}>
                       <Text style={styles.formatText}>{game.format}</Text>
                     </View>
-                    <Ionicons name="chevron-back" size={16} color={COLORS.quaternaryLabel} />
+                    <Ionicons name="chevron-back" size={18} color={COLORS.textMuted} />
                   </TouchableOpacity>
                 </Animated.View>
               ))
             ) : (
               <View style={styles.emptyState}>
                 <View style={styles.emptyIconContainer}>
-                  <Ionicons name="football-outline" size={32} color={COLORS.tertiaryLabel} />
+                  <Ionicons name="football-outline" size={40} color={COLORS.textMuted} />
                 </View>
                 <Text style={styles.emptyText}>
                   {activeTab === 'upcoming' ? 'אין משחקים קרובים' : 'אין היסטוריית משחקים'}
@@ -268,33 +312,14 @@ export default function ProfileScreen() {
             )}
           </Animated.View>
 
-          {/* Legal Links */}
-          <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.legalSection}>
-            <TouchableOpacity
-              style={styles.legalButton}
-              onPress={() => router.push('/legal/privacy')}
-            >
-              <Text style={styles.legalText}>מדיניות פרטיות</Text>
-              <Ionicons name="chevron-back" size={16} color={COLORS.quaternaryLabel} />
-            </TouchableOpacity>
-            <View style={styles.legalSeparator} />
-            <TouchableOpacity
-              style={styles.legalButton}
-              onPress={() => router.push('/legal/terms')}
-            >
-              <Text style={styles.legalText}>תנאי שימוש</Text>
-              <Ionicons name="chevron-back" size={16} color={COLORS.quaternaryLabel} />
-            </TouchableOpacity>
-          </Animated.View>
-
           {/* Sign Out */}
-          <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.signOutSection}>
+          <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.signOutSection}>
             <TouchableOpacity
               style={styles.signOutButton}
               onPress={handleSignOut}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <Ionicons name="log-out-outline" size={20} color={COLORS.red} />
+              <Ionicons name="log-out-outline" size={22} color={COLORS.error} />
               <Text style={styles.signOutText}>התנתקות</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -307,13 +332,35 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.backgroundSecondary,
+    backgroundColor: COLORS.bgDark,
+  },
+  glowOrb: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+  },
+  glowOrb1: {
+    top: -50,
+    right: -100,
+    backgroundColor: COLORS.accentPurple,
+    opacity: 0.08,
+  },
+  glowOrb2: {
+    bottom: 200,
+    left: -150,
+    backgroundColor: COLORS.primary,
+    opacity: 0.1,
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.backgroundSecondary,
+    gap: 12,
+  },
+  loadingText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
   },
   safeArea: {
     flex: 1,
@@ -331,160 +378,148 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 16,
-    backgroundColor: COLORS.background,
   },
   headerTitle: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: COLORS.label,
-    letterSpacing: -0.5,
+    fontSize: 32,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    letterSpacing: 1,
   },
   settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.systemGray6,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   profileCard: {
-    backgroundColor: COLORS.background,
     marginHorizontal: 20,
-    marginTop: 16,
-    borderRadius: 16,
+    borderRadius: 24,
     padding: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    overflow: 'hidden',
   },
   avatarContainer: {
     marginBottom: 16,
   },
   avatarGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
   },
   avatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
   },
   avatarText: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: 'white',
+    fontSize: 36,
+    fontWeight: '700',
+    color: COLORS.bgDark,
   },
   userName: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: COLORS.label,
-    marginBottom: 4,
+    fontSize: 26,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginBottom: 6,
   },
   locationRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     marginBottom: 20,
   },
   locationText: {
-    fontSize: 14,
-    color: COLORS.tertiaryLabel,
+    fontSize: 15,
+    color: COLORS.textSecondary,
   },
   statsContainer: {
     flexDirection: 'row-reverse',
     width: '100%',
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: COLORS.separator,
+    borderTopColor: COLORS.cardBorder,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
+  statIcon: {
+    marginBottom: 4,
+    opacity: 0.8,
+  },
   statValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: COLORS.label,
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.primary,
   },
   statLabel: {
     fontSize: 12,
-    color: COLORS.tertiaryLabel,
+    color: COLORS.textMuted,
     marginTop: 2,
   },
   statDivider: {
     width: 1,
-    height: 40,
-    backgroundColor: COLORS.separator,
-  },
-  mvpIcon: {
-    marginBottom: 2,
+    height: 50,
+    backgroundColor: COLORS.cardBorder,
   },
   section: {
-    backgroundColor: COLORS.background,
     marginHorizontal: 20,
-    marginTop: 16,
-    borderRadius: 16,
+    marginTop: 20,
+    borderRadius: 24,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: COLORS.cardBg,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: COLORS.label,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
     textAlign: 'right',
     marginBottom: 16,
   },
   tabsContainer: {
     flexDirection: 'row-reverse',
-    backgroundColor: COLORS.systemGray6,
-    borderRadius: 10,
-    padding: 3,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 14,
+    padding: 4,
     marginBottom: 16,
   },
   tab: {
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
-  tabActive: {
-    backgroundColor: COLORS.background,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
+  tabActive: {},
   tabText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.tertiaryLabel,
+    fontWeight: '600',
+    color: COLORS.textMuted,
   },
   tabTextActive: {
-    color: COLORS.label,
-    fontWeight: '600',
+    color: COLORS.bgDark,
   },
   gameCard: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.separator,
+    borderBottomColor: COLORS.cardBorder,
   },
   gameInfo: {
     flex: 1,
@@ -492,95 +527,66 @@ const styles = StyleSheet.create({
   gameTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.label,
+    color: COLORS.textPrimary,
     textAlign: 'right',
     marginBottom: 4,
   },
   gameMeta: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   gameDate: {
     fontSize: 13,
-    color: COLORS.tertiaryLabel,
+    color: COLORS.textSecondary,
   },
   formatBadge: {
-    backgroundColor: COLORS.systemGray6,
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(0, 210, 106, 0.15)',
+    paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 8,
-    marginLeft: 8,
+    borderRadius: 10,
+    marginLeft: 10,
   },
   formatText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.secondaryLabel,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 32,
   },
   emptyIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.systemGray6,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.04)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: COLORS.tertiaryLabel,
-  },
-  legalSection: {
-    backgroundColor: COLORS.background,
-    marginHorizontal: 20,
-    marginTop: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  legalButton: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-  },
-  legalText: {
-    fontSize: 16,
-    color: COLORS.label,
-  },
-  legalSeparator: {
-    height: 1,
-    backgroundColor: COLORS.separator,
-    marginHorizontal: 16,
+    color: COLORS.textMuted,
   },
   signOutSection: {
     marginHorizontal: 20,
-    marginTop: 16,
+    marginTop: 20,
   },
   signOutButton: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: COLORS.background,
+    gap: 10,
+    backgroundColor: 'rgba(255, 82, 82, 0.1)',
     padding: 16,
     borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 82, 82, 0.2)',
   },
   signOutText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.red,
+    fontWeight: '700',
+    color: COLORS.error,
   },
 });
