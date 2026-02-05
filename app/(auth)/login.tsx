@@ -21,49 +21,42 @@ import Animated, {
     FadeInUp,
     useAnimatedStyle,
     useSharedValue,
-    withSpring,
     withRepeat,
     withTiming,
     withSequence,
+    interpolate,
+    Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 
 const { width, height } = Dimensions.get('window');
 
-// Vibrant color palette
+// Tesla-inspired futuristic color palette
 const COLORS = {
-    // Primary greens
-    primary: '#00D26A',
-    primaryDark: '#00A855',
-    primaryLight: '#00E676',
+    // Core colors - minimal and clean
+    background: '#000000',
+    surface: '#0A0A0A',
+    surfaceLight: '#141414',
 
-    // Background gradient
-    bgDark: '#0A1A14',
-    bgMid: '#0D2818',
-    bgLight: '#14332A',
+    // Accent - single signature color
+    accent: '#00D4FF',
+    accentDim: 'rgba(0, 212, 255, 0.15)',
+    accentGlow: 'rgba(0, 212, 255, 0.3)',
 
-    // Accent colors
-    accent: '#00FFB3',
-    accentOrange: '#FF6B35',
-    accentPurple: '#A855F7',
-    accentBlue: '#38BDF8',
-
-    // Text
+    // Text hierarchy
     textPrimary: '#FFFFFF',
-    textSecondary: 'rgba(255, 255, 255, 0.7)',
-    textMuted: 'rgba(255, 255, 255, 0.5)',
+    textSecondary: 'rgba(255, 255, 255, 0.6)',
+    textTertiary: 'rgba(255, 255, 255, 0.35)',
 
     // UI elements
-    cardBg: 'rgba(255, 255, 255, 0.08)',
-    cardBorder: 'rgba(255, 255, 255, 0.12)',
-    inputBg: 'rgba(255, 255, 255, 0.06)',
-    inputBorder: 'rgba(255, 255, 255, 0.15)',
-    inputFocus: 'rgba(0, 210, 106, 0.5)',
+    border: 'rgba(255, 255, 255, 0.08)',
+    borderFocus: 'rgba(0, 212, 255, 0.5)',
+    inputBg: 'rgba(255, 255, 255, 0.03)',
 
-    error: '#FF5252',
-    success: '#00E676',
+    // States
+    error: '#FF3B5C',
+    success: '#00D4FF',
 };
 
 type InputFieldProps = {
@@ -82,7 +75,6 @@ type InputFieldProps = {
     isFocused: boolean;
     onFocus: () => void;
     onBlur: () => void;
-    icon: string;
 };
 
 const InputField = memo(({
@@ -101,24 +93,17 @@ const InputField = memo(({
     isFocused,
     onFocus,
     onBlur,
-    icon,
 }: InputFieldProps) => {
     return (
         <View style={[
             styles.inputContainer,
             isFocused && styles.inputContainerFocused,
         ]}>
-            <Ionicons
-                name={icon as any}
-                size={20}
-                color={isFocused ? COLORS.primary : COLORS.textMuted}
-                style={styles.inputIcon}
-            />
             <TextInput
                 ref={inputRef}
                 style={styles.input}
                 placeholder={placeholder}
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={COLORS.textTertiary}
                 value={value}
                 onChangeText={onChangeText}
                 secureTextEntry={secureTextEntry && !showPassword}
@@ -126,7 +111,7 @@ const InputField = memo(({
                 autoCapitalize={autoCapitalize}
                 onFocus={onFocus}
                 onBlur={onBlur}
-                selectionColor={COLORS.primary}
+                selectionColor={COLORS.accent}
                 onSubmitEditing={onSubmitEditing}
                 returnKeyType={onSubmitEditing ? 'next' : 'done'}
                 textContentType={textContentType}
@@ -140,15 +125,46 @@ const InputField = memo(({
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                     <Ionicons
-                        name={showPassword ? 'eye-off' : 'eye'}
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                         size={20}
-                        color={COLORS.textMuted}
+                        color={COLORS.textTertiary}
                     />
                 </TouchableOpacity>
             )}
+            {isFocused && <View style={styles.inputFocusLine} />}
         </View>
     );
 });
+
+// Animated grid line component
+const GridLine = ({ delay, horizontal }: { delay: number; horizontal?: boolean }) => {
+    const opacity = useSharedValue(0);
+
+    useEffect(() => {
+        opacity.value = withRepeat(
+            withSequence(
+                withTiming(0.15, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+                withTiming(0.03, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+            ),
+            -1,
+            true
+        );
+    }, []);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        opacity: opacity.value,
+    }));
+
+    return (
+        <Animated.View
+            style={[
+                horizontal ? styles.gridLineHorizontal : styles.gridLineVertical,
+                animatedStyle,
+                { [horizontal ? 'top' : 'left']: `${delay}%` }
+            ]}
+        />
+    );
+};
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
@@ -161,13 +177,12 @@ export default function LoginScreen() {
     const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
 
     const router = useRouter();
-
     const passwordRef = useRef<TextInput>(null);
     const confirmPasswordRef = useRef<TextInput>(null);
 
-    // Animations
-    const ballBounce = useSharedValue(0);
-    const glowPulse = useSharedValue(1);
+    // Subtle pulse animation for the logo
+    const pulseValue = useSharedValue(1);
+    const ringScale = useSharedValue(1);
 
     const [modalConfig, setModalConfig] = useState({
         visible: false,
@@ -180,24 +195,24 @@ export default function LoginScreen() {
     useEffect(() => {
         checkConnection();
 
-        // Ball bounce animation
-        ballBounce.value = withRepeat(
+        // Subtle breathing animation
+        pulseValue.value = withRepeat(
             withSequence(
-                withTiming(-15, { duration: 500 }),
-                withTiming(0, { duration: 500 })
+                withTiming(1.02, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+                withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) })
             ),
             -1,
             true
         );
 
-        // Glow pulse animation
-        glowPulse.value = withRepeat(
+        // Ring expansion animation
+        ringScale.value = withRepeat(
             withSequence(
-                withTiming(1.2, { duration: 1500 }),
-                withTiming(1, { duration: 1500 })
+                withTiming(1.5, { duration: 4000, easing: Easing.out(Easing.ease) }),
+                withTiming(1, { duration: 0 })
             ),
             -1,
-            true
+            false
         );
     }, []);
 
@@ -207,22 +222,22 @@ export default function LoginScreen() {
         setConnectionStatus(result.success ? 'connected' : 'error');
     };
 
-    const ballAnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: ballBounce.value }],
+    const logoAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: pulseValue.value }],
     }));
 
-    const glowAnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: glowPulse.value }],
-        opacity: 0.6 / glowPulse.value,
+    const ringAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: ringScale.value }],
+        opacity: interpolate(ringScale.value, [1, 1.5], [0.4, 0]),
     }));
 
     const showError = (message: string) => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setModalConfig({
             visible: true,
-            title: 'שגיאה',
+            title: 'Error',
             message: message.includes('Network') || message.includes('fetch')
-                ? 'בעיית חיבור לרשת. בדקו את החיבור לאינטרנט.'
+                ? 'Connection error. Check your internet.'
                 : message,
             type: 'error',
             onClose: () => setModalConfig(prev => ({ ...prev, visible: false })),
@@ -233,27 +248,27 @@ export default function LoginScreen() {
         const normalizedEmail = email.trim().toLowerCase();
 
         if (connectionStatus === 'error') {
-            showError('אין חיבור לשרת. נסו שוב מאוחר יותר.');
+            showError('No server connection. Try again later.');
             return;
         }
 
         if (!normalizedEmail || !password) {
-            showError('יש למלא את כל השדות');
+            showError('Please fill in all fields');
             return;
         }
 
         if (isSignUp && password !== confirmPassword) {
-            showError('הסיסמאות לא תואמות');
+            showError('Passwords do not match');
             return;
         }
 
         if (password.length < 6) {
-            showError('הסיסמה חייבת להכיל לפחות 6 תווים');
+            showError('Password must be at least 6 characters');
             return;
         }
 
         setLoading(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
         try {
             if (isSignUp) {
@@ -262,14 +277,13 @@ export default function LoginScreen() {
                     showError(error.message);
                 } else {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
                     if (data?.session) {
                         router.replace('/(auth)/profile_setup');
                     } else {
                         setModalConfig({
                             visible: true,
-                            title: 'נרשמת בהצלחה',
-                            message: 'שלחנו קישור אימות לאימייל שלך.',
+                            title: 'Account Created',
+                            message: 'Check your email to verify your account.',
                             type: 'success',
                             onClose: () => {
                                 setModalConfig(prev => ({ ...prev, visible: false }));
@@ -306,7 +320,7 @@ export default function LoginScreen() {
                 }
             }
         } catch (err: any) {
-            showError(err.message || 'אירעה שגיאה');
+            showError(err.message || 'An error occurred');
         }
 
         setLoading(false);
@@ -321,25 +335,25 @@ export default function LoginScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Gradient Background */}
-            <LinearGradient
-                colors={[COLORS.bgDark, COLORS.bgMid, COLORS.bgLight]}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-            />
+            {/* Pure black background */}
+            <View style={StyleSheet.absoluteFill}>
+                {/* Subtle grid pattern */}
+                {[10, 25, 40, 55, 70, 85].map((pos, i) => (
+                    <GridLine key={`v-${i}`} delay={pos} />
+                ))}
+                {[15, 35, 55, 75].map((pos, i) => (
+                    <GridLine key={`h-${i}`} delay={pos} horizontal />
+                ))}
+            </View>
 
-            {/* Decorative elements */}
-            <Animated.View style={[styles.glowOrb, styles.glowOrb1, glowAnimatedStyle]} />
-            <Animated.View style={[styles.glowOrb, styles.glowOrb2, glowAnimatedStyle]} />
-            <View style={styles.gridPattern} />
+            {/* Subtle accent glow at top */}
+            <View style={styles.topGlow} />
 
             <SafeAreaView style={styles.safeArea} edges={['top']}>
-                {/* Connection Status */}
                 {connectionStatus === 'error' && (
                     <TouchableOpacity onPress={checkConnection} style={styles.connectionBanner}>
-                        <Ionicons name="cloud-offline" size={16} color={COLORS.error} />
-                        <Text style={styles.connectionText}>אין חיבור - לחצו לנסות שוב</Text>
+                        <View style={styles.connectionDot} />
+                        <Text style={styles.connectionText}>Offline - Tap to retry</Text>
                     </TouchableOpacity>
                 )}
             </SafeAreaView>
@@ -354,109 +368,97 @@ export default function LoginScreen() {
                     keyboardShouldPersistTaps="handled"
                 >
                     {/* Logo Section */}
-                    <Animated.View entering={FadeInDown.duration(600)} style={styles.logoSection}>
+                    <Animated.View entering={FadeIn.duration(1000)} style={styles.logoSection}>
                         <View style={styles.logoContainer}>
-                            <Animated.View style={[styles.logoGlow, glowAnimatedStyle]} />
-                            <Animated.View style={[styles.logoBall, ballAnimatedStyle]}>
-                                <LinearGradient
-                                    colors={[COLORS.accent, COLORS.primary, COLORS.primaryDark]}
-                                    style={styles.ballGradient}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                >
-                                    <Ionicons name="football" size={36} color="white" />
-                                </LinearGradient>
+                            {/* Animated ring */}
+                            <Animated.View style={[styles.logoRing, ringAnimatedStyle]} />
+
+                            {/* Main logo */}
+                            <Animated.View style={[styles.logoInner, logoAnimatedStyle]}>
+                                <View style={styles.logoIconContainer}>
+                                    <Ionicons name="football-outline" size={32} color={COLORS.accent} />
+                                </View>
                             </Animated.View>
                         </View>
 
-                        <Text style={styles.appName}>כדור</Text>
+                        <Text style={styles.appName}>KADUR</Text>
                         <Text style={styles.tagline}>
-                            {isSignUp ? 'הצטרפו למשחק' : 'מצאו משחקים באיזור שלכם'}
+                            {isSignUp ? 'Join the game' : 'Find your next match'}
                         </Text>
                     </Animated.View>
 
-                    {/* Form Card */}
+                    {/* Form Section */}
                     <Animated.View
-                        entering={FadeInUp.delay(200).duration(500)}
-                        style={styles.formCard}
+                        entering={FadeInUp.delay(300).duration(600)}
+                        style={styles.formSection}
                     >
-                        {/* Tabs */}
-                        <View style={styles.tabsContainer}>
+                        {/* Mode Toggle */}
+                        <View style={styles.modeToggle}>
                             <TouchableOpacity
-                                style={[styles.tab, !isSignUp && styles.tabActive]}
+                                style={[styles.modeButton, !isSignUp && styles.modeButtonActive]}
                                 onPress={() => isSignUp && toggleMode()}
                                 activeOpacity={0.7}
                             >
-                                {!isSignUp && (
-                                    <LinearGradient
-                                        colors={[COLORS.primary, COLORS.primaryDark]}
-                                        style={StyleSheet.absoluteFill}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 1 }}
-                                    />
-                                )}
-                                <Text style={[styles.tabText, !isSignUp && styles.tabTextActive]}>
-                                    התחברות
+                                <Text style={[styles.modeText, !isSignUp && styles.modeTextActive]}>
+                                    Sign In
                                 </Text>
+                                {!isSignUp && <View style={styles.modeIndicator} />}
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.tab, isSignUp && styles.tabActive]}
+                                style={[styles.modeButton, isSignUp && styles.modeButtonActive]}
                                 onPress={() => !isSignUp && toggleMode()}
                                 activeOpacity={0.7}
                             >
-                                {isSignUp && (
-                                    <LinearGradient
-                                        colors={[COLORS.primary, COLORS.primaryDark]}
-                                        style={StyleSheet.absoluteFill}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 1 }}
-                                    />
-                                )}
-                                <Text style={[styles.tabText, isSignUp && styles.tabTextActive]}>
-                                    הרשמה
+                                <Text style={[styles.modeText, isSignUp && styles.modeTextActive]}>
+                                    Sign Up
                                 </Text>
+                                {isSignUp && <View style={styles.modeIndicator} />}
                             </TouchableOpacity>
                         </View>
 
                         {/* Input Fields */}
                         <View style={styles.inputsContainer}>
-                            <InputField
-                                icon="mail"
-                                placeholder="אימייל"
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                onSubmitEditing={() => passwordRef.current?.focus()}
-                                textContentType="emailAddress"
-                                autoComplete="email"
-                                isFocused={focusedField === 'email'}
-                                onFocus={() => setFocusedField('email')}
-                                onBlur={() => setFocusedField(null)}
-                            />
+                            <Animated.View entering={FadeInDown.delay(400).duration(400)}>
+                                <Text style={styles.inputLabel}>Email</Text>
+                                <InputField
+                                    placeholder="your@email.com"
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    keyboardType="email-address"
+                                    onSubmitEditing={() => passwordRef.current?.focus()}
+                                    textContentType="emailAddress"
+                                    autoComplete="email"
+                                    isFocused={focusedField === 'email'}
+                                    onFocus={() => setFocusedField('email')}
+                                    onBlur={() => setFocusedField(null)}
+                                />
+                            </Animated.View>
 
-                            <InputField
-                                inputRef={passwordRef}
-                                icon="lock-closed"
-                                placeholder="סיסמה"
-                                value={password}
-                                onChangeText={setPassword}
-                                secureTextEntry
-                                onSubmitEditing={() => isSignUp ? confirmPasswordRef.current?.focus() : handleAuth()}
-                                textContentType={isSignUp ? 'newPassword' : 'password'}
-                                autoComplete={isSignUp ? 'new-password' : 'password'}
-                                showPassword={showPassword}
-                                onToggleShowPassword={() => setShowPassword(!showPassword)}
-                                isFocused={focusedField === 'password'}
-                                onFocus={() => setFocusedField('password')}
-                                onBlur={() => setFocusedField(null)}
-                            />
+                            <Animated.View entering={FadeInDown.delay(500).duration(400)}>
+                                <Text style={styles.inputLabel}>Password</Text>
+                                <InputField
+                                    inputRef={passwordRef}
+                                    placeholder="Enter password"
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry
+                                    onSubmitEditing={() => isSignUp ? confirmPasswordRef.current?.focus() : handleAuth()}
+                                    textContentType={isSignUp ? 'newPassword' : 'password'}
+                                    autoComplete={isSignUp ? 'new-password' : 'password'}
+                                    showPassword={showPassword}
+                                    onToggleShowPassword={() => setShowPassword(!showPassword)}
+                                    isFocused={focusedField === 'password'}
+                                    onFocus={() => setFocusedField('password')}
+                                    onBlur={() => setFocusedField(null)}
+                                />
+                            </Animated.View>
 
                             {isSignUp && (
-                                <Animated.View entering={FadeInDown.duration(300)}>
+                                <Animated.View entering={FadeInDown.duration(400)}>
+                                    <Text style={styles.inputLabel}>Confirm Password</Text>
                                     <InputField
                                         inputRef={confirmPasswordRef}
-                                        icon="shield-checkmark"
-                                        placeholder="אימות סיסמה"
+                                        placeholder="Confirm password"
                                         value={confirmPassword}
                                         onChangeText={setConfirmPassword}
                                         secureTextEntry
@@ -474,47 +476,46 @@ export default function LoginScreen() {
                         </View>
 
                         {/* Submit Button */}
-                        <TouchableOpacity
-                            style={[
-                                styles.submitButton,
-                                (loading || connectionStatus === 'error') && styles.submitButtonDisabled,
-                            ]}
-                            onPress={handleAuth}
-                            disabled={loading || connectionStatus === 'error'}
-                            activeOpacity={0.8}
-                        >
-                            <LinearGradient
-                                colors={loading || connectionStatus === 'error'
-                                    ? ['#444', '#333']
-                                    : [COLORS.accent, COLORS.primary]}
-                                style={styles.submitGradient}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
+                        <Animated.View entering={FadeInDown.delay(600).duration(400)}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.submitButton,
+                                    (loading || connectionStatus === 'error') && styles.submitButtonDisabled,
+                                ]}
+                                onPress={handleAuth}
+                                disabled={loading || connectionStatus === 'error'}
+                                activeOpacity={0.8}
                             >
-                                {loading ? (
-                                    <Text style={styles.submitText}>מתחבר...</Text>
-                                ) : (
-                                    <>
+                                <View style={styles.submitButtonInner}>
+                                    {loading ? (
+                                        <Text style={styles.submitText}>Connecting...</Text>
+                                    ) : (
                                         <Text style={styles.submitText}>
-                                            {isSignUp ? 'בואו נתחיל!' : 'יאללה למגרש!'}
+                                            {isSignUp ? 'Create Account' : 'Continue'}
                                         </Text>
-                                        <Ionicons name="arrow-back" size={20} color={COLORS.bgDark} />
-                                    </>
-                                )}
-                            </LinearGradient>
-                        </TouchableOpacity>
+                                    )}
+                                    {!loading && (
+                                        <Ionicons name="arrow-forward" size={20} color={COLORS.background} />
+                                    )}
+                                </View>
+                                {/* Glow effect */}
+                                <View style={styles.submitGlow} />
+                            </TouchableOpacity>
+                        </Animated.View>
 
                         {isSignUp && (
-                            <Text style={styles.hintText}>
-                                הסיסמה חייבת להכיל לפחות 6 תווים
-                            </Text>
+                            <Animated.View entering={FadeIn.delay(700)}>
+                                <Text style={styles.hintText}>
+                                    Password must contain at least 6 characters
+                                </Text>
+                            </Animated.View>
                         )}
                     </Animated.View>
 
                     {/* Footer */}
-                    <Animated.View entering={FadeIn.delay(500)} style={styles.footer}>
+                    <Animated.View entering={FadeIn.delay(800)} style={styles.footer}>
                         <Text style={styles.footerText}>
-                            בהמשך השימוש אתם מאשרים את תנאי השימוש ומדיניות הפרטיות
+                            By continuing, you agree to our Terms and Privacy Policy
                         </Text>
                     </Animated.View>
                 </ScrollView>
@@ -526,7 +527,7 @@ export default function LoginScreen() {
                 title={modalConfig.title}
                 message={modalConfig.message}
                 type={modalConfig.type}
-                buttonText="יאללה!"
+                buttonText="Continue"
             />
         </View>
     );
@@ -535,34 +536,32 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.bgDark,
+        backgroundColor: COLORS.background,
     },
-    glowOrb: {
-        position: 'absolute',
-        width: 300,
-        height: 300,
-        borderRadius: 150,
-    },
-    glowOrb1: {
-        top: -100,
-        right: -100,
-        backgroundColor: COLORS.primary,
-        opacity: 0.15,
-    },
-    glowOrb2: {
-        bottom: 100,
-        left: -150,
-        backgroundColor: COLORS.accent,
-        opacity: 0.1,
-    },
-    gridPattern: {
+    gridLineVertical: {
         position: 'absolute',
         top: 0,
+        bottom: 0,
+        width: 1,
+        backgroundColor: COLORS.accent,
+    },
+    gridLineHorizontal: {
+        position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 0,
-        opacity: 0.03,
-        backgroundColor: 'transparent',
+        height: 1,
+        backgroundColor: COLORS.accent,
+    },
+    topGlow: {
+        position: 'absolute',
+        top: -200,
+        left: '50%',
+        marginLeft: -300,
+        width: 600,
+        height: 400,
+        borderRadius: 300,
+        backgroundColor: COLORS.accentGlow,
+        opacity: 0.3,
     },
     safeArea: {
         position: 'absolute',
@@ -572,176 +571,214 @@ const styles = StyleSheet.create({
         zIndex: 10,
     },
     connectionBanner: {
-        flexDirection: 'row-reverse',
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        backgroundColor: 'rgba(255, 82, 82, 0.15)',
-        marginHorizontal: 20,
-        marginTop: 10,
-        borderRadius: 12,
-        gap: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        backgroundColor: 'rgba(255, 59, 92, 0.1)',
+        marginHorizontal: 24,
+        marginTop: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 59, 92, 0.2)',
+        gap: 10,
+    },
+    connectionDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: COLORS.error,
     },
     connectionText: {
         color: COLORS.error,
         fontSize: 13,
-        fontWeight: '600',
+        fontWeight: '500',
+        letterSpacing: 0.3,
     },
     content: {
         flex: 1,
     },
     scrollContent: {
         flexGrow: 1,
-        paddingHorizontal: 24,
+        paddingHorizontal: 32,
         justifyContent: 'center',
         paddingBottom: 40,
-        paddingTop: 60,
+        paddingTop: 80,
     },
     logoSection: {
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: 48,
     },
     logoContainer: {
         position: 'relative',
-        marginBottom: 20,
+        width: 100,
+        height: 100,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 24,
     },
-    logoGlow: {
+    logoRing: {
         position: 'absolute',
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: COLORS.primary,
-        top: -20,
-        left: -20,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 1,
+        borderColor: COLORS.accent,
     },
-    logoBall: {
+    logoInner: {
         width: 80,
         height: 80,
         borderRadius: 40,
-        shadowColor: COLORS.accent,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.5,
-        shadowRadius: 20,
-        elevation: 15,
+        backgroundColor: COLORS.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
-    ballGradient: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+    logoIconContainer: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: COLORS.accentDim,
         alignItems: 'center',
         justifyContent: 'center',
     },
     appName: {
-        fontSize: 42,
-        fontWeight: '800',
+        fontSize: 32,
+        fontWeight: '300',
         color: COLORS.textPrimary,
-        letterSpacing: 2,
+        letterSpacing: 12,
+        marginBottom: 8,
     },
     tagline: {
-        fontSize: 18,
+        fontSize: 14,
         color: COLORS.textSecondary,
-        marginTop: 8,
+        letterSpacing: 1,
     },
-    formCard: {
-        backgroundColor: COLORS.cardBg,
-        borderRadius: 24,
-        padding: 24,
-        borderWidth: 1,
-        borderColor: COLORS.cardBorder,
+    formSection: {
+        marginBottom: 32,
     },
-    tabsContainer: {
-        flexDirection: 'row-reverse',
-        backgroundColor: COLORS.inputBg,
-        borderRadius: 16,
-        padding: 4,
-        marginBottom: 24,
+    modeToggle: {
+        flexDirection: 'row',
+        marginBottom: 32,
+        gap: 32,
+        justifyContent: 'center',
     },
-    tab: {
-        flex: 1,
-        paddingVertical: 12,
-        alignItems: 'center',
-        borderRadius: 12,
-        overflow: 'hidden',
+    modeButton: {
+        paddingVertical: 8,
+        position: 'relative',
     },
-    tabActive: {},
-    tabText: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: COLORS.textMuted,
+    modeButtonActive: {},
+    modeText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: COLORS.textTertiary,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
     },
-    tabTextActive: {
-        color: COLORS.bgDark,
+    modeTextActive: {
+        color: COLORS.textPrimary,
+    },
+    modeIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 2,
+        backgroundColor: COLORS.accent,
     },
     inputsContainer: {
-        gap: 16,
-        marginBottom: 24,
+        gap: 24,
+        marginBottom: 32,
+    },
+    inputLabel: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: COLORS.textTertiary,
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
+        marginBottom: 8,
     },
     inputContainer: {
-        flexDirection: 'row-reverse',
+        flexDirection: 'row',
         alignItems: 'center',
         height: 56,
-        borderRadius: 16,
         backgroundColor: COLORS.inputBg,
-        paddingHorizontal: 16,
-        borderWidth: 1.5,
-        borderColor: COLORS.inputBorder,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+        position: 'relative',
     },
     inputContainerFocused: {
-        borderColor: COLORS.primary,
-        backgroundColor: 'rgba(0, 210, 106, 0.08)',
+        borderBottomColor: COLORS.accent,
     },
-    inputIcon: {
-        marginLeft: 12,
+    inputFocusLine: {
+        position: 'absolute',
+        bottom: -1,
+        left: 0,
+        right: 0,
+        height: 2,
+        backgroundColor: COLORS.accent,
     },
     input: {
         flex: 1,
         height: '100%',
         color: COLORS.textPrimary,
         fontSize: 16,
-        textAlign: 'right',
+        textAlign: 'left',
+        letterSpacing: 0.5,
     },
     eyeButton: {
-        padding: 4,
+        padding: 8,
     },
     submitButton: {
-        borderRadius: 16,
+        height: 56,
+        borderRadius: 4,
+        backgroundColor: COLORS.accent,
+        position: 'relative',
         overflow: 'hidden',
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 16,
-        elevation: 10,
     },
     submitButtonDisabled: {
-        shadowOpacity: 0,
+        backgroundColor: COLORS.surfaceLight,
+        opacity: 0.5,
     },
-    submitGradient: {
-        flexDirection: 'row-reverse',
+    submitButtonInner: {
+        flex: 1,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 18,
+        gap: 12,
+    },
+    submitGlow: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
     },
     submitText: {
-        color: COLORS.bgDark,
-        fontSize: 18,
-        fontWeight: '700',
+        color: COLORS.background,
+        fontSize: 14,
+        fontWeight: '600',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
     },
     hintText: {
         textAlign: 'center',
         marginTop: 16,
-        fontSize: 13,
-        color: COLORS.textMuted,
+        fontSize: 12,
+        color: COLORS.textTertiary,
+        letterSpacing: 0.3,
     },
     footer: {
         alignItems: 'center',
-        marginTop: 32,
     },
     footerText: {
-        fontSize: 12,
-        color: COLORS.textMuted,
+        fontSize: 11,
+        color: COLORS.textTertiary,
         textAlign: 'center',
         lineHeight: 18,
+        letterSpacing: 0.3,
     },
 });
