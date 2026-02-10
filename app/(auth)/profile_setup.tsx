@@ -1,67 +1,129 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import {
+    View,
+    Text,
+    TextInput,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    Dimensions,
+    KeyboardAvoidingView,
+    Platform,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import Animated, {
     FadeInDown,
     FadeIn,
+    FadeInUp,
     useAnimatedStyle,
     useSharedValue,
     withRepeat,
     withTiming,
     withSequence,
+    withDelay,
+    withSpring,
     Easing,
     interpolate,
 } from 'react-native-reanimated';
 import { FeedbackModal } from '../../components/ui/FeedbackModal';
 import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
-// Tesla-inspired futuristic color palette
+// Premium color palette (matching login.tsx)
 const COLORS = {
-    background: '#000000',
-    surface: '#0A0A0A',
-    surfaceLight: '#141414',
-    accent: '#00D4FF',
-    accentDim: 'rgba(0, 212, 255, 0.15)',
-    accentGlow: 'rgba(0, 212, 255, 0.3)',
+    // Backgrounds
+    bgPrimary: '#050A08',
+    bgSecondary: '#0A1510',
+    bgTertiary: '#0F1F18',
+
+    // Accent - emerald green
+    accent: '#00E87B',
+    accentLight: '#4DFFA6',
+    accentDark: '#00B85E',
+    accentGlow: 'rgba(0, 232, 123, 0.25)',
+    accentSubtle: 'rgba(0, 232, 123, 0.08)',
+
+    // Text
     textPrimary: '#FFFFFF',
-    textSecondary: 'rgba(255, 255, 255, 0.6)',
-    textTertiary: 'rgba(255, 255, 255, 0.35)',
-    border: 'rgba(255, 255, 255, 0.08)',
-    inputBg: 'rgba(255, 255, 255, 0.03)',
-    error: '#FF3B5C',
+    textSecondary: 'rgba(255, 255, 255, 0.72)',
+    textTertiary: 'rgba(255, 255, 255, 0.45)',
+    textDisabled: 'rgba(255, 255, 255, 0.25)',
+
+    // UI
+    cardBg: 'rgba(255, 255, 255, 0.04)',
+    cardBorder: 'rgba(255, 255, 255, 0.08)',
+    inputBg: 'rgba(255, 255, 255, 0.06)',
+    inputBorder: 'rgba(255, 255, 255, 0.12)',
+    inputFocusBorder: 'rgba(0, 232, 123, 0.6)',
+
+    // States
+    error: '#FF4757',
+    errorBg: 'rgba(255, 71, 87, 0.12)',
+    success: '#00E87B',
 };
 
 const positions = [
-    { id: 'goalkeeper', label: 'Goalkeeper', icon: 'hand-left-outline' },
-    { id: 'defender', label: 'Defender', icon: 'shield-outline' },
-    { id: 'midfielder', label: 'Midfielder', icon: 'git-branch-outline' },
-    { id: 'forward', label: 'Forward', icon: 'flash-outline' },
+    { id: 'goalkeeper', label: 'שוער', icon: 'hand-left-outline' },
+    { id: 'defender', label: 'מגן', icon: 'shield-outline' },
+    { id: 'midfielder', label: 'קשר', icon: 'git-branch-outline' },
+    { id: 'forward', label: 'חלוץ', icon: 'flash-outline' },
 ];
 
-// Animated scan line component
-const ScanLine = () => {
-    const translateY = useSharedValue(0);
+// Floating particle component
+const FloatingParticle = ({ delay, size, x, duration }: { delay: number; size: number; x: number; duration: number }) => {
+    const translateY = useSharedValue(height + 50);
+    const opacity = useSharedValue(0);
 
     useEffect(() => {
-        translateY.value = withRepeat(
-            withTiming(400, { duration: 3000, easing: Easing.linear }),
-            -1,
-            false
+        translateY.value = withDelay(
+            delay,
+            withRepeat(
+                withTiming(-50, { duration, easing: Easing.linear }),
+                -1,
+                false
+            )
+        );
+        opacity.value = withDelay(
+            delay,
+            withRepeat(
+                withSequence(
+                    withTiming(0.6, { duration: duration * 0.2 }),
+                    withTiming(0.6, { duration: duration * 0.6 }),
+                    withTiming(0, { duration: duration * 0.2 })
+                ),
+                -1,
+                false
+            )
         );
     }, []);
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ translateY: translateY.value }],
-        opacity: interpolate(translateY.value, [0, 200, 400], [0, 0.3, 0]),
+        opacity: opacity.value,
     }));
 
-    return <Animated.View style={[styles.scanLine, animatedStyle]} />;
+    return (
+        <Animated.View
+            style={[
+                {
+                    position: 'absolute',
+                    left: x,
+                    width: size,
+                    height: size,
+                    borderRadius: size / 2,
+                    backgroundColor: COLORS.accent,
+                },
+                animatedStyle,
+            ]}
+        />
+    );
 };
 
 export default function ProfileSetupScreen() {
@@ -77,6 +139,10 @@ export default function ProfileSetupScreen() {
 
     // Progress animation
     const progressValue = useSharedValue(0.33);
+
+    // Step icon animation
+    const iconScale = useSharedValue(0.8);
+    const iconRotation = useSharedValue(0);
 
     const [modalConfig, setModalConfig] = useState<{
         visible: boolean;
@@ -94,19 +160,40 @@ export default function ProfileSetupScreen() {
 
     useEffect(() => {
         progressValue.value = withTiming(step / 3, { duration: 500, easing: Easing.out(Easing.ease) });
+        iconScale.value = withSequence(
+            withTiming(0.8, { duration: 0 }),
+            withSpring(1, { damping: 10, stiffness: 100 })
+        );
+        iconRotation.value = withSequence(
+            withTiming(0, { duration: 0 }),
+            withTiming(360, { duration: 600, easing: Easing.out(Easing.ease) })
+        );
     }, [step]);
 
     const progressStyle = useAnimatedStyle(() => ({
         width: `${progressValue.value * 100}%`,
     }));
 
+    const iconAnimStyle = useAnimatedStyle(() => ({
+        transform: [
+            { scale: iconScale.value },
+            { rotate: `${iconRotation.value}deg` }
+        ],
+    }));
+
+    const focusAnim = useSharedValue(0);
+
+    useEffect(() => {
+        focusAnim.value = withTiming(focusedField ? 1 : 0, { duration: 200 });
+    }, [focusedField]);
+
     const handleContinue = () => {
         if (step === 1 && !fullName.trim()) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             setModalConfig({
                 visible: true,
-                title: 'Name Required',
-                message: 'Please enter your name to continue',
+                title: 'שם נדרש',
+                message: 'יש להזין את השם כדי להמשיך',
                 type: 'error',
                 onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
             });
@@ -116,8 +203,8 @@ export default function ProfileSetupScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             setModalConfig({
                 visible: true,
-                title: 'City Required',
-                message: 'Please enter your city to continue',
+                title: 'עיר נדרשת',
+                message: 'יש להזין את העיר כדי להמשיך',
                 type: 'error',
                 onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
             });
@@ -136,8 +223,8 @@ export default function ProfileSetupScreen() {
         if (!session?.user) {
             setModalConfig({
                 visible: true,
-                title: 'Session Error',
-                message: 'No active session found. Please sign in again.',
+                title: 'שגיאת חיבור',
+                message: 'לא נמצאה הפעלה פעילה. יש להתחבר מחדש.',
                 type: 'error',
                 onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
             });
@@ -158,7 +245,7 @@ export default function ProfileSetupScreen() {
                 });
 
             const timeoutPromise = new Promise<{ error: { message: string } }>((resolve) => {
-                setTimeout(() => resolve({ error: { message: 'Request timed out. Please try again.' } }), 12000);
+                setTimeout(() => resolve({ error: { message: 'הבקשה נכשלה. נסו שוב.' } }), 12000);
             });
 
             const { error } = await Promise.race([upsertPromise, timeoutPromise]);
@@ -171,8 +258,8 @@ export default function ProfileSetupScreen() {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setModalConfig({
                         visible: true,
-                        title: 'Welcome',
-                        message: 'Your profile will be saved when the system is ready',
+                        title: 'ברוכים הבאים',
+                        message: 'הפרופיל שלכם יישמר כשהמערכת תהיה מוכנה',
                         type: 'success',
                         onClose: () => {
                             setModalConfig(prev => ({ ...prev, visible: false }));
@@ -185,7 +272,7 @@ export default function ProfileSetupScreen() {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                 setModalConfig({
                     visible: true,
-                    title: 'Error',
+                    title: 'שגיאה',
                     message: error.message,
                     type: 'error',
                     onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
@@ -194,8 +281,8 @@ export default function ProfileSetupScreen() {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 setModalConfig({
                     visible: true,
-                    title: 'Profile Created',
-                    message: 'Welcome to KADUR',
+                    title: 'הפרופיל נוצר',
+                    message: 'ברוכים הבאים לכדור',
                     type: 'success',
                     onClose: () => {
                         setModalConfig(prev => ({ ...prev, visible: false }));
@@ -208,81 +295,78 @@ export default function ProfileSetupScreen() {
         }
     };
 
-    const renderStep1 = () => (
-        <Animated.View entering={FadeInDown.duration(500)} style={styles.stepContainer}>
-            <View style={styles.stepHeader}>
-                <Text style={styles.stepNumber}>01</Text>
-                <Text style={styles.stepTitle}>What's your name?</Text>
-                <Text style={styles.stepDescription}>This is how other players will see you</Text>
-            </View>
+    const getStepIcon = () => {
+        switch (step) {
+            case 1: return 'person-outline';
+            case 2: return 'location-outline';
+            case 3: return 'football-outline';
+            default: return 'person-outline';
+        }
+    };
 
-            <View style={styles.inputSection}>
-                <Text style={styles.inputLabel}>Full Name</Text>
-                <View style={[
-                    styles.inputContainer,
-                    focusedField === 'name' && styles.inputContainerFocused
-                ]}>
+    const getStepTitle = () => {
+        switch (step) {
+            case 1: return 'מה השם שלך?';
+            case 2: return 'איפה אתה נמצא?';
+            case 3: return 'מה העמדה שלך?';
+            default: return '';
+        }
+    };
+
+    const getStepSubtitle = () => {
+        switch (step) {
+            case 1: return 'כך שחקנים אחרים יראו אותך';
+            case 2: return 'נמצא משחקים באזור שלך';
+            case 3: return 'בחר את העמדה המועדפת עליך';
+            default: return '';
+        }
+    };
+
+    const renderInputStep = (
+        value: string,
+        onChange: (text: string) => void,
+        placeholder: string,
+        fieldName: string
+    ) => (
+        <Animated.View entering={FadeInDown.duration(500)} style={styles.inputSection}>
+            <View style={styles.inputWrapper}>
+                <Animated.View
+                    style={[
+                        styles.inputContainer,
+                        focusedField === fieldName && styles.inputContainerFocused,
+                    ]}
+                >
+                    <View style={styles.inputIconContainer}>
+                        <Ionicons
+                            name={fieldName === 'name' ? 'person-outline' : 'location-outline'}
+                            size={20}
+                            color={focusedField === fieldName ? COLORS.accent : COLORS.textTertiary}
+                        />
+                    </View>
                     <TextInput
                         style={styles.input}
-                        placeholder="Enter your name"
-                        placeholderTextColor={COLORS.textTertiary}
-                        value={fullName}
-                        onChangeText={setFullName}
-                        onFocus={() => setFocusedField('name')}
+                        placeholder={placeholder}
+                        placeholderTextColor={COLORS.textDisabled}
+                        value={value}
+                        onChangeText={onChange}
+                        onFocus={() => setFocusedField(fieldName)}
                         onBlur={() => setFocusedField(null)}
                         selectionColor={COLORS.accent}
                         autoFocus
+                        textAlign="right"
                     />
-                    {focusedField === 'name' && <View style={styles.inputFocusLine} />}
-                </View>
+                </Animated.View>
             </View>
         </Animated.View>
     );
 
-    const renderStep2 = () => (
-        <Animated.View entering={FadeInDown.duration(500)} style={styles.stepContainer}>
-            <View style={styles.stepHeader}>
-                <Text style={styles.stepNumber}>02</Text>
-                <Text style={styles.stepTitle}>Where are you located?</Text>
-                <Text style={styles.stepDescription}>Find games near you</Text>
-            </View>
-
-            <View style={styles.inputSection}>
-                <Text style={styles.inputLabel}>City</Text>
-                <View style={[
-                    styles.inputContainer,
-                    focusedField === 'city' && styles.inputContainerFocused
-                ]}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Enter your city"
-                        placeholderTextColor={COLORS.textTertiary}
-                        value={city}
-                        onChangeText={setCity}
-                        onFocus={() => setFocusedField('city')}
-                        onBlur={() => setFocusedField(null)}
-                        selectionColor={COLORS.accent}
-                        autoFocus
-                    />
-                    {focusedField === 'city' && <View style={styles.inputFocusLine} />}
-                </View>
-            </View>
-        </Animated.View>
-    );
-
-    const renderStep3 = () => (
-        <Animated.View entering={FadeInDown.duration(500)} style={styles.stepContainer}>
-            <View style={styles.stepHeader}>
-                <Text style={styles.stepNumber}>03</Text>
-                <Text style={styles.stepTitle}>What's your position?</Text>
-                <Text style={styles.stepDescription}>Select your preferred playing position</Text>
-            </View>
-
+    const renderPositionStep = () => (
+        <Animated.View entering={FadeInDown.duration(500)} style={styles.positionsSection}>
             <View style={styles.positionsContainer}>
                 {positions.map((pos, index) => (
                     <Animated.View
                         key={pos.id}
-                        entering={FadeInDown.delay(index * 100).duration(400)}
+                        entering={FadeInDown.delay(index * 80).duration(400)}
                     >
                         <TouchableOpacity
                             style={[
@@ -295,14 +379,22 @@ export default function ProfileSetupScreen() {
                             }}
                             activeOpacity={0.7}
                         >
+                            {position === pos.id && (
+                                <LinearGradient
+                                    colors={[COLORS.accentSubtle, 'transparent']}
+                                    style={StyleSheet.absoluteFill}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                />
+                            )}
                             <View style={[
                                 styles.positionIconContainer,
                                 position === pos.id && styles.positionIconContainerActive
                             ]}>
                                 <Ionicons
                                     name={pos.icon as any}
-                                    size={24}
-                                    color={position === pos.id ? COLORS.background : COLORS.accent}
+                                    size={22}
+                                    color={position === pos.id ? COLORS.bgPrimary : COLORS.accent}
                                 />
                             </View>
                             <Text style={[
@@ -324,71 +416,149 @@ export default function ProfileSetupScreen() {
             <TouchableOpacity
                 style={styles.skipButton}
                 onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setPosition('');
                 }}
             >
-                <Text style={styles.skipText}>Skip for now</Text>
+                <Text style={styles.skipText}>דלג לעכשיו</Text>
             </TouchableOpacity>
         </Animated.View>
     );
 
     return (
         <View style={styles.container}>
-            {/* Subtle scan line effect */}
-            <ScanLine />
+            {/* Background gradient */}
+            <LinearGradient
+                colors={[COLORS.bgPrimary, COLORS.bgSecondary, COLORS.bgTertiary]}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+            />
 
-            {/* Accent glow */}
-            <View style={styles.topGlow} />
+            {/* Floating particles */}
+            <View style={styles.particlesContainer} pointerEvents="none">
+                <FloatingParticle delay={0} size={3} x={width * 0.1} duration={8000} />
+                <FloatingParticle delay={2000} size={2} x={width * 0.25} duration={10000} />
+                <FloatingParticle delay={1000} size={4} x={width * 0.4} duration={7000} />
+                <FloatingParticle delay={3000} size={2} x={width * 0.6} duration={9000} />
+                <FloatingParticle delay={500} size={3} x={width * 0.75} duration={11000} />
+                <FloatingParticle delay={1500} size={2} x={width * 0.9} duration={8500} />
+            </View>
+
+            {/* Top accent glow */}
+            <View style={styles.topGlow}>
+                <LinearGradient
+                    colors={['transparent', COLORS.accentGlow, 'transparent']}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                />
+            </View>
 
             <SafeAreaView style={styles.safeArea}>
                 {/* Header */}
                 <Animated.View entering={FadeIn.duration(600)} style={styles.header}>
-                    {step > 1 && (
+                    {step > 1 ? (
                         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-                            <Ionicons name="arrow-back" size={24} color={COLORS.textSecondary} />
+                            <Ionicons name="arrow-forward" size={24} color={COLORS.textSecondary} />
                         </TouchableOpacity>
+                    ) : (
+                        <View style={styles.backButton} />
                     )}
                     <View style={styles.headerCenter}>
-                        <Text style={styles.headerTitle}>SETUP</Text>
+                        <Text style={styles.headerTitle}>הגדרת פרופיל</Text>
                     </View>
-                    <View style={styles.headerRight} />
+                    <View style={styles.headerRight}>
+                        <Text style={styles.stepIndicator}>{step}/3</Text>
+                    </View>
                 </Animated.View>
 
                 {/* Progress bar */}
                 <View style={styles.progressContainer}>
                     <View style={styles.progressTrack}>
-                        <Animated.View style={[styles.progressFill, progressStyle]} />
+                        <Animated.View style={[styles.progressFill, progressStyle]}>
+                            <LinearGradient
+                                colors={[COLORS.accent, COLORS.accentDark]}
+                                style={StyleSheet.absoluteFill}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                            />
+                        </Animated.View>
                     </View>
-                    <Text style={styles.progressText}>{step} of 3</Text>
                 </View>
 
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.content}
                 >
-                    {step === 1 && renderStep1()}
-                    {step === 2 && renderStep2()}
-                    {step === 3 && renderStep3()}
-                </ScrollView>
+                    <ScrollView
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        {/* Step Icon */}
+                        <Animated.View style={[styles.stepIconSection, iconAnimStyle]}>
+                            <View style={styles.stepIconOuter}>
+                                <LinearGradient
+                                    colors={[COLORS.accentGlow, 'transparent']}
+                                    style={StyleSheet.absoluteFill}
+                                    start={{ x: 0.5, y: 0 }}
+                                    end={{ x: 0.5, y: 1 }}
+                                />
+                                <View style={styles.stepIconInner}>
+                                    <Ionicons name={getStepIcon() as any} size={32} color={COLORS.accent} />
+                                </View>
+                            </View>
+                        </Animated.View>
+
+                        {/* Step Title */}
+                        <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.stepHeader}>
+                            <Text style={styles.stepTitle}>{getStepTitle()}</Text>
+                            <Text style={styles.stepSubtitle}>{getStepSubtitle()}</Text>
+                        </Animated.View>
+
+                        {/* Form Card */}
+                        <Animated.View
+                            entering={FadeInUp.delay(200).duration(500)}
+                            style={styles.formCard}
+                        >
+                            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+                            <View style={styles.formCardBorder} />
+
+                            {step === 1 && renderInputStep(fullName, setFullName, 'הזן את השם שלך', 'name')}
+                            {step === 2 && renderInputStep(city, setCity, 'הזן את העיר שלך', 'city')}
+                            {step === 3 && renderPositionStep()}
+                        </Animated.View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
 
                 {/* Footer */}
-                <Animated.View entering={FadeIn.delay(300)} style={styles.footer}>
+                <Animated.View entering={FadeIn.delay(400)} style={styles.footer}>
                     <TouchableOpacity
                         style={[styles.continueButton, loading && styles.continueButtonDisabled]}
                         onPress={step === 3 ? handleSave : handleContinue}
                         disabled={loading}
-                        activeOpacity={0.8}
+                        activeOpacity={0.85}
                     >
+                        <LinearGradient
+                            colors={loading ? [COLORS.cardBg, COLORS.cardBg] : [COLORS.accent, COLORS.accentDark]}
+                            style={StyleSheet.absoluteFill}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                        />
+                        <View style={styles.buttonShine} />
                         <View style={styles.continueButtonInner}>
-                            <Text style={styles.continueText}>
-                                {loading ? 'Saving...' : step === 3 ? 'Complete Setup' : 'Continue'}
-                            </Text>
-                            {!loading && (
-                                <Ionicons name="arrow-forward" size={20} color={COLORS.background} />
+                            {loading ? (
+                                <Text style={styles.continueText}>שומר...</Text>
+                            ) : (
+                                <>
+                                    <Ionicons name="arrow-back" size={20} color={COLORS.bgPrimary} />
+                                    <Text style={styles.continueText}>
+                                        {step === 3 ? 'סיום הגדרה' : 'המשך'}
+                                    </Text>
+                                </>
                             )}
                         </View>
-                        <View style={styles.buttonGlow} />
                     </TouchableOpacity>
                 </Animated.View>
             </SafeAreaView>
@@ -399,7 +569,7 @@ export default function ProfileSetupScreen() {
                 title={modalConfig.title}
                 message={modalConfig.message}
                 type={modalConfig.type}
-                buttonText="Continue"
+                buttonText="המשך"
             />
         </View>
     );
@@ -408,37 +578,27 @@ export default function ProfileSetupScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: COLORS.bgPrimary,
     },
-    scanLine: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        height: 2,
-        backgroundColor: COLORS.accent,
-        shadowColor: COLORS.accent,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 10,
+    particlesContainer: {
+        ...StyleSheet.absoluteFillObject,
+        overflow: 'hidden',
     },
     topGlow: {
         position: 'absolute',
-        top: -200,
-        left: '50%',
-        marginLeft: -300,
-        width: 600,
-        height: 400,
-        borderRadius: 300,
-        backgroundColor: COLORS.accentGlow,
-        opacity: 0.2,
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 300,
+        opacity: 0.6,
     },
     safeArea: {
         flex: 1,
     },
     header: {
-        flexDirection: 'row',
+        flexDirection: 'row-reverse',
         alignItems: 'center',
-        paddingHorizontal: 24,
+        paddingHorizontal: 20,
         paddingVertical: 16,
     },
     backButton: {
@@ -452,126 +612,159 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     headerTitle: {
-        fontSize: 12,
+        fontSize: 16,
         fontWeight: '600',
-        color: COLORS.textTertiary,
-        letterSpacing: 3,
+        color: COLORS.textSecondary,
+        letterSpacing: 1,
     },
     headerRight: {
         width: 44,
+        alignItems: 'center',
+    },
+    stepIndicator: {
+        fontSize: 14,
+        color: COLORS.accent,
+        fontWeight: '600',
     },
     progressContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
         paddingHorizontal: 24,
-        marginBottom: 24,
-        gap: 12,
+        marginBottom: 32,
     },
     progressTrack: {
-        flex: 1,
-        height: 2,
-        backgroundColor: COLORS.border,
-        borderRadius: 1,
+        height: 3,
+        backgroundColor: COLORS.cardBg,
+        borderRadius: 2,
         overflow: 'hidden',
     },
     progressFill: {
         height: '100%',
-        backgroundColor: COLORS.accent,
+        borderRadius: 2,
+        overflow: 'hidden',
     },
-    progressText: {
-        fontSize: 12,
-        color: COLORS.textTertiary,
-        fontWeight: '500',
+    content: {
+        flex: 1,
     },
     scrollContent: {
         flexGrow: 1,
         paddingHorizontal: 24,
     },
-    stepContainer: {
-        flex: 1,
+    stepIconSection: {
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    stepIconOuter: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    stepIconInner: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: COLORS.bgSecondary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.cardBorder,
     },
     stepHeader: {
-        marginBottom: 48,
-    },
-    stepNumber: {
-        fontSize: 48,
-        fontWeight: '200',
-        color: COLORS.accent,
-        marginBottom: 8,
-        letterSpacing: 2,
+        alignItems: 'center',
+        marginBottom: 32,
     },
     stepTitle: {
         fontSize: 28,
-        fontWeight: '300',
+        fontWeight: '600',
         color: COLORS.textPrimary,
         marginBottom: 8,
-        letterSpacing: 0.5,
+        textAlign: 'center',
     },
-    stepDescription: {
-        fontSize: 14,
+    stepSubtitle: {
+        fontSize: 15,
         color: COLORS.textSecondary,
-        letterSpacing: 0.3,
+        textAlign: 'center',
     },
-    inputSection: {
-        marginBottom: 24,
+    formCard: {
+        borderRadius: 20,
+        padding: 24,
+        overflow: 'hidden',
+        backgroundColor: COLORS.cardBg,
     },
-    inputLabel: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: COLORS.textTertiary,
-        letterSpacing: 1.5,
-        textTransform: 'uppercase',
-        marginBottom: 12,
-    },
-    inputContainer: {
-        height: 64,
-        backgroundColor: COLORS.inputBg,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
-        justifyContent: 'center',
-        position: 'relative',
-    },
-    inputContainerFocused: {
-        borderBottomColor: COLORS.accent,
-    },
-    inputFocusLine: {
+    formCardBorder: {
         position: 'absolute',
-        bottom: -1,
+        top: 0,
         left: 0,
         right: 0,
-        height: 2,
-        backgroundColor: COLORS.accent,
+        bottom: 0,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: COLORS.cardBorder,
+    },
+    inputSection: {
+        marginBottom: 8,
+    },
+    inputWrapper: {
+        gap: 8,
+    },
+    inputContainer: {
+        flexDirection: 'row-reverse',
+        alignItems: 'center',
+        height: 60,
+        borderRadius: 14,
+        backgroundColor: COLORS.inputBg,
+        paddingHorizontal: 16,
+        borderWidth: 1.5,
+        borderColor: COLORS.inputBorder,
+    },
+    inputContainerFocused: {
+        borderColor: COLORS.inputFocusBorder,
+        backgroundColor: COLORS.accentSubtle,
+    },
+    inputIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        backgroundColor: COLORS.cardBg,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 12,
     },
     input: {
-        fontSize: 24,
+        flex: 1,
+        height: '100%',
         color: COLORS.textPrimary,
-        fontWeight: '300',
-        letterSpacing: 1,
+        fontSize: 18,
+        textAlign: 'right',
+    },
+    positionsSection: {
+        marginBottom: 8,
     },
     positionsContainer: {
         gap: 12,
     },
     positionCard: {
-        flexDirection: 'row',
+        flexDirection: 'row-reverse',
         alignItems: 'center',
-        backgroundColor: COLORS.surface,
-        borderRadius: 4,
-        padding: 20,
+        backgroundColor: COLORS.inputBg,
+        borderRadius: 14,
+        padding: 16,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: COLORS.cardBorder,
+        overflow: 'hidden',
     },
     positionCardActive: {
         borderColor: COLORS.accent,
-        backgroundColor: COLORS.accentDim,
     },
     positionIconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: COLORS.accentDim,
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: COLORS.accentSubtle,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 16,
+        marginLeft: 14,
     },
     positionIconContainerActive: {
         backgroundColor: COLORS.accent,
@@ -581,64 +774,63 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: COLORS.textSecondary,
         fontWeight: '500',
-        letterSpacing: 0.5,
+        textAlign: 'right',
     },
     positionLabelActive: {
         color: COLORS.textPrimary,
     },
     positionCheckmark: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: COLORS.accentDim,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: COLORS.accentSubtle,
         alignItems: 'center',
         justifyContent: 'center',
     },
     skipButton: {
         alignItems: 'center',
-        marginTop: 24,
+        marginTop: 20,
         padding: 12,
     },
     skipText: {
         fontSize: 14,
         color: COLORS.textTertiary,
-        letterSpacing: 0.3,
     },
     footer: {
         padding: 24,
         paddingBottom: 16,
     },
     continueButton: {
-        height: 56,
-        borderRadius: 4,
-        backgroundColor: COLORS.accent,
-        position: 'relative',
+        height: 58,
+        borderRadius: 16,
         overflow: 'hidden',
+        shadowColor: COLORS.accent,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.35,
+        shadowRadius: 16,
+        elevation: 12,
     },
     continueButtonDisabled: {
-        backgroundColor: COLORS.surfaceLight,
-        opacity: 0.5,
+        shadowOpacity: 0,
     },
-    continueButtonInner: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12,
-    },
-    buttonGlow: {
+    buttonShine: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
-        height: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        height: '50%',
+        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    },
+    continueButtonInner: {
+        flex: 1,
+        flexDirection: 'row-reverse',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
     },
     continueText: {
-        color: COLORS.background,
-        fontSize: 14,
-        fontWeight: '600',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
+        color: COLORS.bgPrimary,
+        fontSize: 17,
+        fontWeight: '700',
     },
 });
