@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(npm install:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(netstat -ano)",
+      "Bash(taskkill /PID 23268 /F)",
+      "Bash(cmd /c \"taskkill /PID 23268 /F\")",
+      "Bash(for f:*)",
+      "Bash(do)",
+      "Bash(sed -i 's/font-700/font-bold/g; s/font-600/font-semibold/g; s/font-500/font-medium/g' \"$f\")",
+      "Bash(done)"
+    ]
+  }
+}
