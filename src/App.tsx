@@ -7,12 +7,11 @@ import Profile      from './pages/Profile'
 import GameDetail   from './pages/GameDetail'
 import CreateGame   from './pages/CreateGame'
 import Onboarding   from './pages/Onboarding'
-import Login        from './pages/Login'
+import Auth         from './pages/Auth'
 import ChatRoom     from './pages/ChatRoom'
 import { useAuth }  from './contexts/AuthContext'
 
-const HIDE_NAV  = ['/create-game', '/onboarding', '/login']
-const CHAT_ROOM = /^\/game\/.+\/chat$/
+const HIDE_NAV = ['/create-game', '/onboarding', '/auth']
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -20,56 +19,38 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-pitch-600 border-t-pitch-400 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a0e0c' }}>
+        <div
+          className="w-10 h-10 rounded-full border-2 animate-spin"
+          style={{ borderColor: 'rgba(82,180,141,0.2)', borderTopColor: '#52b48d' }}
+        />
       </div>
     )
   }
-  if (!user) return <Navigate to="/login" state={{ from: location }} replace />
-  return <>{children}</>
-}
-
-function RequireOnboarded({ children }: { children: React.ReactNode }) {
-  const onboarded = localStorage.getItem('kadur-onboarded')
-  if (!onboarded) return <Navigate to="/onboarding" replace />
+  if (!user) return <Navigate to="/auth" state={{ from: location }} replace />
   return <>{children}</>
 }
 
 export default function App() {
   const { pathname } = useLocation()
   const showNav = !HIDE_NAV.some(p => pathname.startsWith(p)) &&
-                  !pathname.startsWith('/game/') &&
-                  !CHAT_ROOM.test(pathname)
+                  !pathname.startsWith('/game/')
 
   return (
     <div className="relative min-h-screen max-w-md mx-auto">
       <Routes>
         {/* Public */}
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/login"      element={<RequireOnboarded><Login /></RequireOnboarded>} />
+        <Route path="/auth"        element={<Auth />} />
+        <Route path="/onboarding"  element={<RequireAuth><Onboarding /></RequireAuth>} />
 
         {/* Protected */}
-        <Route path="/" element={
-          <RequireOnboarded><RequireAuth><Home /></RequireAuth></RequireOnboarded>
-        }/>
-        <Route path="/explore" element={
-          <RequireOnboarded><RequireAuth><Explore /></RequireAuth></RequireOnboarded>
-        }/>
-        <Route path="/chats" element={
-          <RequireOnboarded><RequireAuth><Chats /></RequireAuth></RequireOnboarded>
-        }/>
-        <Route path="/profile" element={
-          <RequireOnboarded><RequireAuth><Profile /></RequireAuth></RequireOnboarded>
-        }/>
-        <Route path="/game/:id" element={
-          <RequireOnboarded><RequireAuth><GameDetail /></RequireAuth></RequireOnboarded>
-        }/>
-        <Route path="/game/:id/chat" element={
-          <RequireOnboarded><RequireAuth><ChatRoom /></RequireAuth></RequireOnboarded>
-        }/>
-        <Route path="/create-game" element={
-          <RequireOnboarded><RequireAuth><CreateGame /></RequireAuth></RequireOnboarded>
-        }/>
+        <Route path="/"            element={<RequireAuth><Home /></RequireAuth>} />
+        <Route path="/explore"     element={<RequireAuth><Explore /></RequireAuth>} />
+        <Route path="/chats"       element={<RequireAuth><Chats /></RequireAuth>} />
+        <Route path="/profile"     element={<RequireAuth><Profile /></RequireAuth>} />
+        <Route path="/game/:id"    element={<RequireAuth><GameDetail /></RequireAuth>} />
+        <Route path="/game/:id/chat" element={<RequireAuth><ChatRoom /></RequireAuth>} />
+        <Route path="/create-game" element={<RequireAuth><CreateGame /></RequireAuth>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

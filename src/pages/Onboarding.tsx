@@ -94,8 +94,7 @@ export default function Onboarding() {
   function goNext() {
     if (animating) return
     if (isLast) {
-      localStorage.setItem('kadur-onboarded', '1')
-      navigate('/login')
+      navigate('/', { replace: true })
     } else {
       setAnimating(true)
       setTimeout(() => { setCurrent(c => c + 1); setAnimating(false) }, 300)
@@ -103,8 +102,7 @@ export default function Onboarding() {
   }
 
   function skip() {
-    localStorage.setItem('kadur-onboarded', '1')
-    navigate('/login')
+    navigate('/', { replace: true })
   }
 
   return (

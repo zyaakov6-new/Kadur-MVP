@@ -34,7 +34,7 @@ export default function Profile() {
 
   function handleLogout() {
     logout()
-    navigate('/onboarding')
+    navigate('/auth', { replace: true })
   }
 
   return (
