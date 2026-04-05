@@ -1,5 +1,4 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
-import { AnimatePresence } from 'framer-motion'
 import BottomNav from './components/BottomNav'
 import Home       from './pages/Home'
 import Explore    from './pages/Explore'

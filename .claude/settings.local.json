@@ -11,7 +11,8 @@
       "Bash(for f:*)",
       "Bash(do)",
       "Bash(sed -i 's/font-700/font-bold/g; s/font-600/font-semibold/g; s/font-500/font-medium/g' \"$f\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(node -e \":*)"
     ]
   }
 }
