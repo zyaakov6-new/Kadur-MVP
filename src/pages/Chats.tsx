@@ -5,8 +5,8 @@ import { useLang } from '../contexts/LanguageContext'
 
 const mockMessages: Record<string, { text: string; textHe: string; time: string; unread: number }> = {
   'game-1': { text: 'Anyone bringing a ball?', textHe: 'מישהו מביא כדור?', time: '2m', unread: 3 },
-  'game-2': { text: 'See you all at 8 sharp!', textHe: 'נתראה ב-8 בדיוק!', time: '15m', unread: 0 },
-  'game-3': { text: 'Game is on 🔥',            textHe: 'המשחק מתקיים 🔥',  time: '1h', unread: 1 },
+  'game-2': { text: 'See you all at 8 sharp!', textHe: 'נתראה ב-8 בדיוק!',  time: '15m', unread: 0 },
+  'game-3': { text: 'Game is on 🔥',            textHe: 'המשחק מתקיים 🔥',  time: '1h',  unread: 1 },
 }
 
 export default function Chats() {
@@ -39,23 +39,27 @@ export default function Chats() {
             return (
               <button
                 key={game.id}
-                onClick={() => navigate(`/game/${game.id}`)}
+                onClick={() => navigate(`/game/${game.id}/chat`)}
                 className="glass-card-hover w-full text-left p-4 opacity-0 animate-fade-up fill-forwards"
                 style={{ animationDelay: `${i * 0.07}s` }}
               >
                 <div className="flex items-center gap-4">
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 font-display text-lg"
-                    style={{ background: 'linear-gradient(135deg, rgba(0,90,60,0.4), rgba(0,90,60,0.15))', border: '1px solid rgba(0,90,60,0.3)' }}
-                  >
-                    ⚽
+                  <div className="relative">
+                    <div
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 font-display text-lg"
+                      style={{ background: 'linear-gradient(135deg, rgba(0,90,60,0.4), rgba(0,90,60,0.15))', border: '1px solid rgba(0,90,60,0.3)' }}
+                    >
+                      ⚽
+                    </div>
+                    {/* Online dot */}
+                    <span className="absolute -bottom-0.5 -end-0.5 w-3 h-3 rounded-full border-2 bg-green-400" style={{ borderColor: '#0a0e0c' }} />
                   </div>
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
                       <h3 className="font-heading font-bold text-sm truncate">{game.title}</h3>
                       <span className="text-[10px] font-heading text-muted flex items-center gap-1 flex-shrink-0 ms-2">
-                        <Clock size={9} />
-                        {msg.time}
+                        <Clock size={9} />{msg.time}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">

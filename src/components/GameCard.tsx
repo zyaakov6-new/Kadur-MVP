@@ -1,6 +1,6 @@
 import { MapPin, Clock, Users, ChevronRight, ChevronLeft } from 'lucide-react'
 import type { Game } from '../types'
-import { getOccupancyPercent } from '../data/mockData'
+import { getOccupancyPercent, gameTitlesEn } from '../data/mockData'
 import { useLang } from '../contexts/LanguageContext'
 
 interface GameCardProps {
@@ -16,7 +16,11 @@ const formatBadgeColors: Record<string, string> = {
 }
 
 export default function GameCard({ game, onClick, style }: GameCardProps) {
-  const { t, isRTL } = useLang()
+  const { t, isRTL, lang } = useLang()
+  const en     = lang === 'en' ? gameTitlesEn[game.id] : null
+  const title  = en ? en.title       : game.title
+  const desc   = en ? en.description : game.description
+  const locName = en ? en.location   : game.location_name
   const pct    = getOccupancyPercent(game)
   const isFull = game.status === 'full'
   const spots  = game.max_players - game.current_players
@@ -44,10 +48,10 @@ export default function GameCard({ game, onClick, style }: GameCardProps) {
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex-1 min-w-0">
             <h3 className="font-heading font-bold text-base leading-tight text-primary truncate mb-1">
-              {game.title}
+              {title}
             </h3>
-            {game.description && (
-              <p className="text-secondary text-xs font-body line-clamp-1">{game.description}</p>
+            {desc && (
+              <p className="text-secondary text-xs font-body line-clamp-1">{desc}</p>
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -59,7 +63,7 @@ export default function GameCard({ game, onClick, style }: GameCardProps) {
         <div className="flex items-center gap-4 text-xs text-secondary font-body">
           <span className="flex items-center gap-1.5">
             <MapPin size={11} className="text-pitch-400 flex-shrink-0" />
-            <span className="truncate max-w-[120px]">{game.location_name}</span>
+            <span className="truncate max-w-[120px]">{locName}</span>
             {game.distance_km && <span className="text-muted">· {game.distance_km}km</span>}
           </span>
           <span className="flex items-center gap-1.5 mr-auto flex-shrink-0">

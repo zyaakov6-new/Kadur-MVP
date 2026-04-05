@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Zap, TrendingUp } from 'lucide-react'
 import GameCard from '../components/GameCard'
-import { mockGames, mockProfile } from '../data/mockData'
+import { mockGames } from '../data/mockData'
 import { useLang } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 
 const XP_PER_LEVEL = 500
 
@@ -17,8 +18,9 @@ function getGreeting(t: ReturnType<typeof useLang>['t']) {
 export default function Home() {
   const navigate = useNavigate()
   const { t } = useLang()
+  const { user } = useAuth()
   const [filter, setFilter] = useState<'all' | '5v5' | '7v7' | '11v11'>('all')
-  const profile = mockProfile
+  const profile = user!
 
   const filtered = filter === 'all' ? mockGames : mockGames.filter(g => g.format === filter)
   const nearbyGames = filtered.filter(g => g.status !== 'finished').slice(0, 4)

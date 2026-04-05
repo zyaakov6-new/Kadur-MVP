@@ -151,7 +151,10 @@ export default function GameDetail() {
             {t.game.join}
           </button>
         )}
-        <button className="btn-ghost flex items-center justify-center gap-2 py-4 px-5">
+        <button
+          onClick={() => navigate(`/game/${game.id}/chat`)}
+          className="btn-ghost flex items-center justify-center gap-2 py-4 px-5"
+        >
           <MessageCircle size={17} />
           {t.game.chat}
         </button>

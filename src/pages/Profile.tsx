@@ -1,14 +1,29 @@
-import { Settings, Star, Shield, Target, Zap, Award } from 'lucide-react'
-import { mockProfile, mockAchievements } from '../data/mockData'
+import { Settings, Star, Shield, Target, Zap, Award, LogOut } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { mockAchievements } from '../data/mockData'
 import { useLang } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 
 const XP_PER_LEVEL = 500
 
+const achievementsHe = [
+  { id: 'ach-1', name: 'נגיעה ראשונה',  description: 'הצטרפת למשחק הראשון שלך', icon: '⚽', xp_reward: 50  },
+  { id: 'ach-2', name: 'הטריקים',        description: 'כבשת 3 שערים במשחק אחד',  icon: '🎩', xp_reward: 150 },
+  { id: 'ach-3', name: 'יוצר המשחק',    description: '10 בישולים סה"כ',          icon: '🎯', xp_reward: 200 },
+  { id: 'ach-4', name: 'מנהיג הקבוצה',  description: 'יצרת 5 משחקים',           icon: '👑', xp_reward: 300 },
+  { id: 'ach-5', name: 'איש הברזל',      description: 'שיחקת 50 משחקים',         icon: '🏃', xp_reward: 500 },
+]
+
 export default function Profile() {
   const { t, lang, toggleLang } = useLang()
-  const p = mockProfile
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const p = user!
+
   const xpProgress = (p.stats.xp % XP_PER_LEVEL) / XP_PER_LEVEL
   const xpToNext   = XP_PER_LEVEL - (p.stats.xp % XP_PER_LEVEL)
+
+  const achs = lang === 'he' ? achievementsHe : mockAchievements
 
   const statRows = [
     { icon: Star,   label: t.stats.goals,   value: p.stats.goals,        color: '#FF5A1F' },
@@ -16,6 +31,11 @@ export default function Profile() {
     { icon: Shield, label: t.stats.games,    value: p.stats.games_played, color: '#8ecfb4' },
     { icon: Award,  label: t.stats.mvps,     value: p.stats.mvp_count,    color: '#FF7A47' },
   ]
+
+  function handleLogout() {
+    logout()
+    navigate('/onboarding')
+  }
 
   return (
     <div className="min-h-screen page-enter" style={{ paddingBottom: 'calc(80px + var(--safe-bottom))' }}>
@@ -33,11 +53,7 @@ export default function Profile() {
           <button
             onClick={toggleLang}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all duration-200 active:scale-95"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.10)',
-            }}
-            title={t.profile.language}
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}
           >
             <span className="text-base leading-none">{lang === 'he' ? '🇮🇱' : '🇬🇧'}</span>
             <span className="text-xs font-heading font-bold uppercase tracking-wider" style={{ color: '#52b48d' }}>
@@ -64,7 +80,7 @@ export default function Profile() {
               <h2 className="font-display text-2xl tracking-wider leading-tight">{p.name}</h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="badge-green">{t.positions[p.position]}</span>
-                <span className="badge-gray">{p.city}</span>
+                {p.city && <span className="badge-gray">{p.city}</span>}
               </div>
             </div>
           </div>
@@ -100,10 +116,7 @@ export default function Profile() {
               className="glass-card p-4 flex items-center gap-3 opacity-0 animate-fade-up fill-forwards"
               style={{ animationDelay: `${i * 0.07}s` }}
             >
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: `${color}18`, border: `1px solid ${color}33` }}
-              >
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color}18`, border: `1px solid ${color}33` }}>
                 <Icon size={16} style={{ color }} />
               </div>
               <div>
@@ -116,10 +129,10 @@ export default function Profile() {
       </div>
 
       {/* Achievements */}
-      <div className="relative z-10 px-5">
+      <div className="relative z-10 px-5 mb-5">
         <h3 className="font-heading font-bold text-xs uppercase tracking-widest text-muted mb-3">{t.profile.achievements}</h3>
         <div className="space-y-2">
-          {mockAchievements.map((ach, i) => (
+          {achs.map((ach, i) => (
             <div
               key={ach.id}
               className="glass-card p-3.5 flex items-center gap-3 opacity-0 animate-fade-up fill-forwards"
@@ -134,6 +147,22 @@ export default function Profile() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Logout */}
+      <div className="relative z-10 px-5 mb-2">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-heading font-bold text-sm uppercase tracking-wider transition-all duration-200 active:scale-95"
+          style={{
+            background: 'rgba(255,59,48,0.08)',
+            border: '1px solid rgba(255,59,48,0.25)',
+            color: '#ff6b6b',
+          }}
+        >
+          <LogOut size={16} />
+          {lang === 'he' ? 'התנתק' : 'Sign Out'}
+        </button>
       </div>
     </div>
   )
