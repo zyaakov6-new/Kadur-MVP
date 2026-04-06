@@ -21,6 +21,20 @@ export interface Profile {
   created_at: string
 }
 
+/** A player's pin on the interactive pitch */
+export interface LineupSpot {
+  x:        number   // 0–100 percent of field width
+  y:        number   // 0–100 percent of field height
+  name:     string
+  initials: string
+}
+
+/** A game-day role claimed by a player */
+export interface GameRole {
+  userId:   string
+  userName: string
+}
+
 export interface Game {
   id:              string
   title:           string
@@ -38,7 +52,11 @@ export interface Game {
   creator?:        Profile
   distance_km?:    number
   participant_ids?: string[]
-  created_at:      string
+  /** userId → position on pitch */
+  lineup?:      Record<string, LineupSpot>
+  /** roleId  → claimed by */
+  game_roles?:  Record<string, GameRole>
+  created_at:   string
 }
 
 export interface Message {

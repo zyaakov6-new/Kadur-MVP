@@ -50,6 +50,8 @@ function snapToGame(id: string, data: any): Game {
     current_players: data.current_players ?? 0,
     creator_id:      data.creator_id,
     participant_ids: data.participant_ids ?? [],
+    lineup:          data.lineup      ?? undefined,
+    game_roles:      data.game_roles  ?? undefined,
     created_at:      data.created_at?.toDate
       ? data.created_at.toDate().toISOString()
       : (data.created_at ?? new Date().toISOString()),

@@ -1,23 +1,13 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, MapPin, Clock, Users, Share2, UserPlus, UserMinus, MessageCircle, Trophy } from 'lucide-react'
+import { ArrowLeft, ArrowRight, MapPin, Clock, Users, Share2, UserPlus, UserMinus, MessageCircle } from 'lucide-react'
 import { getOccupancyPercent } from '../data/mockData'
 import { useLang } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useGame } from '../contexts/GameContext'
+import LineupField from '../components/LineupField'
 
-const positionColors: Record<string, string> = {
-  GK: '#FF5A1F', DEF: '#005A3C', MID: '#52b48d', FWD: '#FF7A47', ANY: '#8ecfb4',
-}
-
-const mockPlayers = [
-  { id: '1', name: 'אבי כהן',    nameEn: 'Avi Cohen',    position: 'GK',  team: 'A', initials: 'א.כ' },
-  { id: '2', name: 'נועה לוי',    nameEn: 'Noa Levi',     position: 'DEF', team: 'A', initials: 'נ.ל' },
-  { id: '3', name: 'בן שחר',     nameEn: 'Ben Shahar',   position: 'MID', team: 'A', initials: 'ב.ש' },
-  { id: '4', name: 'דנה פרץ',    nameEn: 'Dana Peretz',  position: 'FWD', team: 'A', initials: 'ד.פ' },
-  { id: '5', name: 'יעל מזרחי',   nameEn: 'Yael Mizrahi', position: 'DEF', team: 'B', initials: 'י.מ' },
-  { id: '6', name: 'ערן כץ',     nameEn: 'Eran Katz',    position: 'MID', team: 'B', initials: 'ע.כ' },
-  { id: '7', name: 'ליאור קדוש',  nameEn: 'Lior Kadosh',  position: 'MID', team: 'B', initials: 'ל.ק' },
-]
+type Tab = 'info' | 'lineup'
 
 export default function GameDetail() {
   const { id } = useParams()
@@ -25,6 +15,7 @@ export default function GameDetail() {
   const { t, lang, isRTL } = useLang()
   const { user } = useAuth()
   const { games, joinGame, leaveGame, hasJoined } = useGame()
+  const [tab, setTab] = useState<Tab>('info')
 
   const game = games.find(g => g.id === id)
 
@@ -39,18 +30,21 @@ export default function GameDetail() {
     )
   }
 
-  const g        = game  // non-nullable after the early return above
+  const g        = game
   const joined   = hasJoined(g.id)
   const isFull   = g.status === 'full'
   const spots    = g.max_players - g.current_players
   const pct      = getOccupancyPercent(g)
-  const teamA    = mockPlayers.filter(p => p.team === 'A')
-  const teamB    = mockPlayers.filter(p => p.team === 'B')
   const BackIcon = isRTL ? ArrowRight : ArrowLeft
+  const he = lang === 'he'
+
+  const userInitials = user
+    ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+    : ''
 
   async function handleShare() {
     const url  = window.location.href
-    const text = lang === 'he'
+    const text = he
       ? `הצטרף למשחק "${g.title}" ב-${g.location_name}`
       : `Join the game "${g.title}" at ${g.location_name}`
     if (navigator.share) {
@@ -62,11 +56,8 @@ export default function GameDetail() {
 
   async function handleJoinLeave() {
     if (!user) { navigate('/auth'); return }
-    if (joined) {
-      await leaveGame(g.id)
-    } else {
-      await joinGame(g.id)
-    }
+    if (joined) await leaveGame(g.id)
+    else        await joinGame(g.id)
   }
 
   return (
@@ -87,11 +78,11 @@ export default function GameDetail() {
       </div>
 
       {/* Hero */}
-      <div className="relative z-10 px-5 mb-5">
+      <div className="relative z-10 px-5 mb-4">
         <div className="glass-card p-5">
           <div className="flex items-center gap-2 mb-3">
             <span className={g.format === '5v5' ? 'badge-green' : g.format === '7v7' ? 'badge-ember' : 'badge-gray'}>{g.format}</span>
-            {joined && <span className="badge-green">{lang === 'he' ? 'נרשמת' : 'Joined'}</span>}
+            {joined && <span className="badge-green">{he ? 'נרשמת' : 'Joined'}</span>}
             {isFull ? <span className="badge-ember">{t.game.full}</span> : <span className="badge-green">{t.game.open}</span>}
           </div>
           <h1 className="font-display text-3xl tracking-wider mb-1">{g.title}</h1>
@@ -103,7 +94,7 @@ export default function GameDetail() {
             </div>
             <div className="flex items-center gap-3 text-secondary">
               <Clock size={14} className="text-ember-400 flex-shrink-0" />
-              <span>{new Date(g.scheduled_at).toLocaleString(lang === 'he' ? 'he-IL' : 'en-US', {
+              <span>{new Date(g.scheduled_at).toLocaleString(he ? 'he-IL' : 'en-US', {
                 weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
               })}</span>
             </div>
@@ -111,8 +102,8 @@ export default function GameDetail() {
         </div>
       </div>
 
-      {/* Occupancy */}
-      <div className="relative z-10 px-5 mb-5">
+      {/* Occupancy bar */}
+      <div className="relative z-10 px-5 mb-4">
         <div className="glass-card p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm">
@@ -124,62 +115,107 @@ export default function GameDetail() {
             </span>
           </div>
           <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{
-                width: `${pct}%`,
-                background: isFull ? 'linear-gradient(90deg, #FF5A1F, #FF7A47)' : 'linear-gradient(90deg, #005A3C, #52b48d)',
-                boxShadow: isFull ? '0 0 8px rgba(255,90,31,0.4)' : '0 0 8px rgba(82,180,141,0.4)',
-              }}
-            />
+            <div className="h-full rounded-full transition-all duration-700" style={{
+              width:      `${pct}%`,
+              background: isFull ? 'linear-gradient(90deg, #FF5A1F, #FF7A47)' : 'linear-gradient(90deg, #005A3C, #52b48d)',
+              boxShadow:  isFull ? '0 0 8px rgba(255,90,31,0.4)' : '0 0 8px rgba(82,180,141,0.4)',
+            }} />
           </div>
         </div>
       </div>
 
-      {/* Lineup */}
-      <div className="relative z-10 px-5 mb-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Trophy size={14} className="text-ember-400" />
-          <h2 className="font-heading font-bold text-sm uppercase tracking-wider">{t.game.lineup}</h2>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {[{ label: t.game.team_a, color: '#52b48d', border: 'rgba(82,180,141,0.2)', players: teamA },
-            { label: t.game.team_b, color: '#FF7A47', border: 'rgba(255,122,71,0.2)',  players: teamB }].map(({ label, color, border, players }) => (
-            <div key={label} className="glass-card p-3">
-              <div className="text-xs font-heading font-bold uppercase tracking-widest mb-3 pb-2" style={{ color, borderBottom: `1px solid ${border}` }}>
-                {label}
-              </div>
-              <div className="space-y-2">
-                {players.map(p => (
-                  <div key={p.id} className="flex items-center gap-2">
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-heading font-bold flex-shrink-0"
-                      style={{ background: `${positionColors[p.position]}22`, border: `1px solid ${positionColors[p.position]}44`, color: positionColors[p.position] }}
-                    >
-                      {p.initials}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-body font-medium truncate">{lang === 'he' ? p.name : p.nameEn}</p>
-                      <p className="text-[10px] font-heading font-semibold tracking-wider" style={{ color: positionColors[p.position] }}>
-                        {t.positions[p.position as keyof typeof t.positions]}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {/* Tab switcher */}
+      <div className="relative z-10 px-5 mb-4">
+        <div className="flex rounded-xl p-1 gap-1"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          {([
+            { id: 'info',   labelHe: '📋 פרטים',  labelEn: '📋 Info'   },
+            { id: 'lineup', labelHe: '⚽ הרכב',    labelEn: '⚽ Lineup' },
+          ] as { id: Tab; labelHe: string; labelEn: string }[]).map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className="flex-1 py-2.5 rounded-lg text-sm font-heading font-bold transition-all duration-200"
+              style={{
+                background: tab === t.id ? 'linear-gradient(135deg, #007a50, #005A3C)' : 'transparent',
+                color:      tab === t.id ? '#fff' : 'rgba(240,244,242,0.45)',
+                boxShadow:  tab === t.id ? '0 4px 12px rgba(0,90,60,0.3)' : 'none',
+              }}
+            >
+              {he ? t.labelHe : t.labelEn}
+            </button>
           ))}
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="relative z-10 px-5 flex gap-3">
+      {/* ── INFO TAB ── */}
+      {tab === 'info' && (
+        <div className="relative z-10 px-5 space-y-4">
+          {/* Joined players list */}
+          {(g.participant_ids?.length ?? 0) > 0 && (
+            <div className="glass-card p-4">
+              <p className="text-xs font-heading font-bold uppercase tracking-widest text-muted mb-3">
+                {he ? 'שחקנים רשומים' : 'Registered players'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(g.participant_ids ?? []).map((uid, i) => {
+                  const colors = ['#52b48d','#FF7A47','#8ecfb4','#FFB347','#87CEEB','#DDA0DD']
+                  const color  = uid === user?.id ? '#00c36b' : colors[i % colors.length]
+                  const isMe   = uid === user?.id
+                  return (
+                    <div key={uid}
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-heading font-bold"
+                      style={{
+                        background: color + '33',
+                        border:     `2px solid ${color}`,
+                        color,
+                        boxShadow:  isMe ? `0 0 8px ${color}88` : 'none',
+                      }}
+                      title={isMe ? (he ? 'אתה' : 'You') : uid.slice(0, 6)}
+                    >
+                      {isMe ? userInitials : '#'}
+                    </div>
+                  )
+                })}
+                {/* Empty spots */}
+                {Array.from({ length: Math.max(0, g.max_players - (g.participant_ids?.length ?? 0)) }).slice(0, 6).map((_, i) => (
+                  <div key={`empty-${i}`}
+                    className="w-9 h-9 rounded-full flex items-center justify-center"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(255,255,255,0.12)' }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── LINEUP TAB ── */}
+      {tab === 'lineup' && user && (
+        <div className="relative z-10">
+          <LineupField
+            game={g}
+            userId={user.id}
+            userName={user.name}
+            userInitials={userInitials}
+            isJoined={joined}
+            lang={lang}
+          />
+        </div>
+      )}
+
+      {/* Actions — always visible */}
+      <div className="relative z-10 px-5 mt-5 flex gap-3">
         {(!isFull || joined) && (
           <button
             onClick={handleJoinLeave}
-            className={joined ? 'btn-ghost flex-1 flex items-center justify-center gap-2 py-4' : 'btn-primary flex-1 flex items-center justify-center gap-2 py-4'}
+            className={joined
+              ? 'btn-ghost flex-1 flex items-center justify-center gap-2 py-4'
+              : 'btn-primary flex-1 flex items-center justify-center gap-2 py-4'}
           >
-            {joined ? <><UserMinus size={17} />{lang === 'he' ? 'עזוב' : 'Leave'}</> : <><UserPlus size={17} />{t.game.join}</>}
+            {joined
+              ? <><UserMinus size={17} />{he ? 'עזוב' : 'Leave'}</>
+              : <><UserPlus  size={17} />{t.game.join}</>}
           </button>
         )}
         <button
