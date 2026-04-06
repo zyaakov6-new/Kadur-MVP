@@ -86,7 +86,7 @@ export default function ChatRoom() {
 
     const unsub = onSnapshot(q, snapshot => {
       if (snapshot.empty) {
-        setMessages(initBotMessages(lang))
+        setMessages([])   // real empty chat — no fake seeds
       } else {
         setMessages(snapshot.docs.map(d => {
           const data = d.data()
@@ -230,6 +230,16 @@ export default function ChatRoom() {
         {loadingMsgs ? (
           <div className="flex items-center justify-center py-12">
             <span className="w-6 h-6 rounded-full border-2 border-pitch-400/30 border-t-pitch-400 animate-spin" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full py-16 gap-3 text-center">
+            <span className="text-4xl">⚽</span>
+            <p className="font-heading font-bold text-sm">
+              {lang === 'he' ? 'אין הודעות עדיין' : 'No messages yet'}
+            </p>
+            <p className="text-secondary text-xs">
+              {lang === 'he' ? 'היה הראשון לכתוב!' : 'Be the first to say something!'}
+            </p>
           </div>
         ) : messages.map(msg => (
           <div key={msg.id} className={`flex items-end gap-2 ${msg.mine ? 'flex-row-reverse' : 'flex-row'}`}>

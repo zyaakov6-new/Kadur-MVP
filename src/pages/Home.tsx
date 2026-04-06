@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Zap, TrendingUp } from 'lucide-react'
+import { Plus, Zap, TrendingUp, X } from 'lucide-react'
 import GameCard from '../components/GameCard'
 import { useLang } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -8,6 +8,16 @@ import { useGame } from '../contexts/GameContext'
 import type { Game } from '../types'
 
 const XP_PER_LEVEL = 500
+
+const XP_ACTIONS = [
+  { emoji: '🎮', he: 'הצטרפות למשחק',   en: 'Join a game',     xp: 50  },
+  { emoji: '⚽', he: 'שחקת משחק',        en: 'Play a game',     xp: 100 },
+  { emoji: '🥅', he: 'כבישת שער',        en: 'Score a goal',    xp: 20  },
+  { emoji: '🎯', he: 'בישול',            en: 'Assist',          xp: 15  },
+  { emoji: '🏆', he: 'מצטיין המשחק',     en: 'Game MVP',        xp: 200 },
+  { emoji: '➕', he: 'יצירת משחק',       en: 'Create a game',   xp: 75  },
+  { emoji: '👥', he: 'הזמנת חבר',        en: 'Invite a friend', xp: 100 },
+]
 
 function getGreeting(t: ReturnType<typeof useLang>['t']) {
   const h = new Date().getHours()
@@ -27,12 +37,14 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 export default function Home() {
   const navigate = useNavigate()
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const { user } = useAuth()
   const { games } = useGame()
   const [filter, setFilter] = useState<'all' | '5v5' | '7v7' | '11v11'>('all')
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
+  const [showXpGuide, setShowXpGuide] = useState(false)
   const profile = user!
+  const he = lang === 'he'
 
   // Get user location
   useEffect(() => {
@@ -69,8 +81,8 @@ export default function Home() {
         <div className="pitch-lines absolute inset-0 opacity-40" />
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 px-5 pt-14 pb-5">
+      {/* Header — z-30 so it's always above other elements */}
+      <header className="relative z-30 px-5 pt-14 pb-5">
         <div className="flex items-center justify-between mb-1">
           <div>
             <p className="text-xs font-heading font-semibold uppercase tracking-widest text-secondary mb-0.5">
@@ -86,28 +98,44 @@ export default function Home() {
               <Zap size={13} className="text-ember-400" />
               <span className="font-heading font-bold text-sm text-primary">{t.home.level} {profile.stats.level}</span>
             </div>
+            {/* Profile avatar — large touch target for mobile */}
             <button
               onClick={() => navigate('/profile')}
-              className="w-10 h-10 rounded-full flex items-center justify-center font-heading font-bold text-sm active:scale-90 transition-transform"
-              style={{ background: 'linear-gradient(135deg, #005A3C, #007a50)', boxShadow: '0 0 0 2px rgba(0,90,60,0.5)' }}
+              className="rounded-full flex items-center justify-center font-heading font-bold text-sm"
+              style={{
+                width: '44px', height: '44px',
+                background: 'linear-gradient(135deg, #005A3C, #007a50)',
+                boxShadow: '0 0 0 2px rgba(0,90,60,0.5)',
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
+              }}
             >
-              {profile.name.split(' ').map((n: string) => n[0]).join('')}
+              {profile.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
             </button>
           </div>
         </div>
 
-        {/* XP Bar */}
+        {/* XP Bar — tap to see how to earn XP */}
         <div className="mt-3">
           <div className="flex justify-between text-[10px] font-heading font-semibold uppercase tracking-wider text-muted mb-1.5">
             <span>{profile.stats.xp.toLocaleString()} XP</span>
             <span>{xpToNext} {t.home.xp_to_level} {profile.stats.level + 1}</span>
           </div>
-          <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${xpProgress * 100}%`, background: 'linear-gradient(90deg, #005A3C, #52b48d)', boxShadow: '0 0 8px rgba(82,180,141,0.5)' }}
-            />
-          </div>
+          <button
+            onClick={() => setShowXpGuide(true)}
+            className="w-full block"
+            style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+          >
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${xpProgress * 100}%`, background: 'linear-gradient(90deg, #005A3C, #52b48d)', boxShadow: '0 0 8px rgba(82,180,141,0.5)' }}
+              />
+            </div>
+            <p className="text-[9px] font-heading text-muted mt-1 text-center tracking-wider">
+              {he ? 'לחץ לראות איך מרוויחים XP' : 'Tap to see how to earn XP'}
+            </p>
+          </button>
         </div>
       </header>
 
@@ -196,11 +224,74 @@ export default function Home() {
           background: 'linear-gradient(135deg, #00c36b, #007a50)',
           boxShadow: '0 8px 32px rgba(0,195,107,0.45)',
           color: '#fff',
+          WebkitTapHighlightColor: 'transparent',
+          touchAction: 'manipulation',
         }}
       >
         <Plus size={18} strokeWidth={2.5} />
         {t.home.new_game}
       </button>
+
+      {/* XP Guide bottom sheet */}
+      {showXpGuide && (
+        <div className="fixed inset-0 z-50" onClick={() => setShowXpGuide(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-3xl p-6"
+            style={{ background: '#121a15', border: '1px solid rgba(255,255,255,0.1)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="font-heading font-bold text-lg">
+                  {he ? 'איך מרוויחים XP' : 'How to earn XP'}
+                </h3>
+                <p className="text-xs text-secondary mt-0.5">
+                  {he ? `רמה ${profile.stats.level} · ${profile.stats.xp} / ${profile.stats.level * XP_PER_LEVEL} XP` : `Level ${profile.stats.level} · ${profile.stats.xp} / ${profile.stats.level * XP_PER_LEVEL} XP`}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowXpGuide(false)}
+                className="w-8 h-8 glass-card flex items-center justify-center"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Current level progress */}
+            <div className="glass-card p-3 mb-5">
+              <div className="flex justify-between text-[10px] font-heading text-muted mb-2">
+                <span>{he ? `רמה ${profile.stats.level}` : `Level ${profile.stats.level}`}</span>
+                <span>{he ? `רמה ${profile.stats.level + 1}` : `Level ${profile.stats.level + 1}`}</span>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${xpProgress * 100}%`, background: 'linear-gradient(90deg, #005A3C, #52b48d)', boxShadow: '0 0 8px rgba(82,180,141,0.5)' }}
+                />
+              </div>
+              <p className="text-center text-xs font-heading text-secondary mt-2">
+                {xpToNext} XP {he ? 'עד הרמה הבאה' : 'to next level'}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {XP_ACTIONS.map(action => (
+                <div key={action.en} className="flex items-center justify-between py-2.5 px-1"
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl w-7 text-center">{action.emoji}</span>
+                    <span className="text-sm font-body">{he ? action.he : action.en}</span>
+                  </div>
+                  <span className="font-heading font-bold text-sm" style={{ color: '#52b48d' }}>
+                    +{action.xp} XP
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
