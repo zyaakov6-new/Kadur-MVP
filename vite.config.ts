@@ -35,8 +35,29 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Take over immediately on new deploy — no waiting for tab close
+        skipWaiting:   true,
+        clientsClaim:  true,
+
+        // Only cache static assets (images, fonts) — NOT the JS bundles
+        // JS/HTML will always be fetched fresh from network
+        globPatterns: ['**/*.{png,svg,woff2}'],
+
         runtimeCaching: [
+          // App shell (HTML + JS + CSS) → NetworkFirst so new deploys show instantly
+          {
+            urlPattern: ({ request }) =>
+              request.destination === 'document' ||
+              request.destination === 'script'   ||
+              request.destination === 'style',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName:   'app-shell',
+              networkTimeoutSeconds: 5,
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 },
+            },
+          },
+          // Google Fonts → CacheFirst (they never change)
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler:    'CacheFirst',

@@ -5,12 +5,10 @@ import type { Game, LineupSpot, GameRole } from '../types'
 
 // ── Predefined game-day roles ────────────────────────────────────────────────
 export const GAME_ROLES: { id: string; emoji: string; he: string; en: string }[] = [
-  { id: 'ball',      emoji: '⚽', he: 'מביא כדור',   en: 'Bring ball'   },
-  { id: 'bibs',      emoji: '🦺', he: 'גופיות',       en: 'Bibs/Vests'  },
-  { id: 'pump',      emoji: '💨', he: 'משאבה',         en: 'Pump'         },
-  { id: 'cones',     emoji: '🔶', he: 'חרוטים',        en: 'Cones'        },
-  { id: 'water',     emoji: '💧', he: 'שתייה',         en: 'Drinks'       },
-  { id: 'referee',   emoji: '🟨', he: 'שופט',          en: 'Referee'      },
+  { id: 'ball',  emoji: '⚽', he: 'מביא כדור', en: 'Bring ball'  },
+  { id: 'bibs',  emoji: '🦺', he: 'גופיות',    en: 'Bibs/Vests' },
+  { id: 'pump',  emoji: '💨', he: 'משאבה',      en: 'Pump'        },
+  { id: 'water', emoji: '💧', he: 'שתייה',      en: 'Drinks'      },
 ]
 
 // ── Avatar colours cycling ────────────────────────────────────────────────────
