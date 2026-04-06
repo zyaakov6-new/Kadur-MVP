@@ -59,7 +59,17 @@ async function loadOrCreateProfile(fb: FbUser, defaults?: Partial<Record<string,
   const snap = await getDoc(ref)
 
   if (snap.exists()) {
-    return fbUserToProfile(fb, snap.data())
+    const data  = snap.data()
+    const stats = data.stats as Profile['stats'] | undefined
+
+    // One-time migration: if profile has the old mock stats, reset to zero
+    const isMockStats = stats && (stats.xp === 2840 || stats.level === 8 || stats.games_played === 57)
+    if (isMockStats) {
+      await updateDoc(ref, { stats: ZERO_STATS, statsVersion: 1 })
+      return fbUserToProfile(fb, { ...data, stats: ZERO_STATS })
+    }
+
+    return fbUserToProfile(fb, data)
   }
 
   // Profile missing — auto-create so login never bounces
