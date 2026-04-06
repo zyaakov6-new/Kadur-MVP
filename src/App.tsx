@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import BottomNav    from './components/BottomNav'
 import Home         from './pages/Home'
 import Explore      from './pages/Explore'
@@ -57,6 +58,7 @@ export default function App() {
       </Routes>
 
       {showNav && <BottomNav />}
+      <Analytics />
     </div>
   )
 }
