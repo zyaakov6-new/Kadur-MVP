@@ -1,8 +1,10 @@
-import { Settings, Star, Shield, Target, Zap, Award, LogOut } from 'lucide-react'
+import { useState } from 'react'
+import { Settings, Star, Shield, Target, Zap, Award, LogOut, X, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { mockAchievements } from '../data/mockData'
 import { useLang } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import type { PlayerPosition } from '../types'
 
 const XP_PER_LEVEL = 500
 
@@ -14,15 +16,28 @@ const achievementsHe = [
   { id: 'ach-5', name: 'איש הברזל',      description: 'שיחקת 50 משחקים',         icon: '🏃', xp_reward: 500 },
 ]
 
+const POSITIONS: { value: PlayerPosition; labelHe: string; labelEn: string }[] = [
+  { value: 'GK',  labelHe: 'שוער',    labelEn: 'Goalkeeper' },
+  { value: 'DEF', labelHe: 'מגן',     labelEn: 'Defender'   },
+  { value: 'MID', labelHe: 'קשר',     labelEn: 'Midfielder' },
+  { value: 'FWD', labelHe: 'חלוץ',    labelEn: 'Forward'    },
+  { value: 'ANY', labelHe: 'כל עמדה', labelEn: 'Any'        },
+]
+
 export default function Profile() {
   const { t, lang, toggleLang } = useLang()
-  const { user, logout } = useAuth()
+  const { user, logout, updateProfile } = useAuth()
   const navigate = useNavigate()
   const p = user!
 
+  const [showSettings, setShowSettings] = useState(false)
+  const [editName, setEditName]         = useState(p.name)
+  const [editCity, setEditCity]         = useState(p.city ?? '')
+  const [editPos,  setEditPos]          = useState<PlayerPosition>(p.position)
+  const [saving,   setSaving]           = useState(false)
+
   const xpProgress = (p.stats.xp % XP_PER_LEVEL) / XP_PER_LEVEL
   const xpToNext   = XP_PER_LEVEL - (p.stats.xp % XP_PER_LEVEL)
-
   const achs = lang === 'he' ? achievementsHe : mockAchievements
 
   const statRows = [
@@ -31,6 +46,13 @@ export default function Profile() {
     { icon: Shield, label: t.stats.games,    value: p.stats.games_played, color: '#8ecfb4' },
     { icon: Award,  label: t.stats.mvps,     value: p.stats.mvp_count,    color: '#FF7A47' },
   ]
+
+  async function handleSave() {
+    setSaving(true)
+    await updateProfile({ name: editName, city: editCity || undefined, position: editPos })
+    setSaving(false)
+    setShowSettings(false)
+  }
 
   function handleLogout() {
     logout()
@@ -49,7 +71,6 @@ export default function Profile() {
       <div className="relative z-10 flex items-center justify-between px-5 pt-14 pb-4">
         <h1 className="font-display text-4xl tracking-wider">{t.profile.title}</h1>
         <div className="flex items-center gap-2">
-          {/* Language Toggle */}
           <button
             onClick={toggleLang}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all duration-200 active:scale-95"
@@ -60,7 +81,10 @@ export default function Profile() {
               {lang === 'he' ? 'EN' : 'עב'}
             </span>
           </button>
-          <button className="w-10 h-10 glass-card flex items-center justify-center">
+          <button
+            onClick={() => { setEditName(p.name); setEditCity(p.city ?? ''); setEditPos(p.position); setShowSettings(true) }}
+            className="w-10 h-10 glass-card flex items-center justify-center active:scale-90 transition-transform"
+          >
             <Settings size={17} />
           </button>
         </div>
@@ -74,7 +98,7 @@ export default function Profile() {
               className="w-16 h-16 rounded-2xl flex items-center justify-center font-display text-2xl flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #005A3C, #007a50)', boxShadow: '0 0 24px rgba(0,90,60,0.4)' }}
             >
-              {p.name.split(' ').map(n => n[0]).join('')}
+              {p.name.split(' ').map((n: string) => n[0]).join('')}
             </div>
             <div className="flex-1">
               <h2 className="font-display text-2xl tracking-wider leading-tight">{p.name}</h2>
@@ -84,8 +108,6 @@ export default function Profile() {
               </div>
             </div>
           </div>
-
-          {/* Level + XP */}
           <div className="glass-card p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -154,16 +176,80 @@ export default function Profile() {
         <button
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-heading font-bold text-sm uppercase tracking-wider transition-all duration-200 active:scale-95"
-          style={{
-            background: 'rgba(255,59,48,0.08)',
-            border: '1px solid rgba(255,59,48,0.25)',
-            color: '#ff6b6b',
-          }}
+          style={{ background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.25)', color: '#ff6b6b' }}
         >
           <LogOut size={16} />
           {lang === 'he' ? 'התנתק' : 'Sign Out'}
         </button>
       </div>
+
+      {/* Settings Bottom Sheet */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50" onClick={() => setShowSettings(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-3xl p-6 space-y-4"
+            style={{ background: '#121a15', border: '1px solid rgba(255,255,255,0.1)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-heading font-bold text-lg">{lang === 'he' ? 'עריכת פרופיל' : 'Edit Profile'}</h3>
+              <button onClick={() => setShowSettings(false)} className="w-8 h-8 glass-card flex items-center justify-center">
+                <X size={14} />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-heading font-semibold uppercase tracking-widest text-muted mb-1.5">
+                {lang === 'he' ? 'שם' : 'Name'}
+              </label>
+              <input value={editName} onChange={e => setEditName(e.target.value)}
+                className="input-glass w-full" />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-heading font-semibold uppercase tracking-widest text-muted mb-1.5">
+                {lang === 'he' ? 'עיר' : 'City'}
+              </label>
+              <input value={editCity} onChange={e => setEditCity(e.target.value)}
+                placeholder={lang === 'he' ? 'תל אביב' : 'Tel Aviv'} className="input-glass w-full" />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-heading font-semibold uppercase tracking-widest text-muted mb-1.5">
+                {lang === 'he' ? 'עמדה' : 'Position'}
+              </label>
+              <div className="flex gap-2 flex-wrap">
+                {POSITIONS.map(pos => (
+                  <button
+                    key={pos.value}
+                    onClick={() => setEditPos(pos.value)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-heading font-semibold transition-all"
+                    style={{
+                      background: editPos === pos.value ? 'rgba(0,90,60,0.35)' : 'rgba(255,255,255,0.06)',
+                      border: `1px solid ${editPos === pos.value ? 'rgba(0,90,60,0.5)' : 'rgba(255,255,255,0.09)'}`,
+                      color: editPos === pos.value ? '#52b48d' : 'rgba(240,244,242,0.5)',
+                    }}
+                  >
+                    {lang === 'he' ? pos.labelHe : pos.labelEn}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={handleSave}
+              disabled={saving || !editName.trim()}
+              className="btn-primary w-full py-3.5 flex items-center justify-center gap-2"
+            >
+              {saving
+                ? <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                : <><Check size={16} /> {lang === 'he' ? 'שמור' : 'Save'}</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

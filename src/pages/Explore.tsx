@@ -2,20 +2,21 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, SlidersHorizontal, MapPin } from 'lucide-react'
 import GameCard from '../components/GameCard'
-import { mockGames } from '../data/mockData'
 import type { GameFormat } from '../types'
 import { useLang } from '../contexts/LanguageContext'
+import { useGame } from '../contexts/GameContext'
 
 export default function Explore() {
   const navigate = useNavigate()
   const { t } = useLang()
+  const { games } = useGame()
   const [query, setQuery]   = useState('')
   const [format, setFormat] = useState<GameFormat | 'all'>('all')
   const [city, setCity]     = useState<string>('all')
 
-  const cities = ['all', ...Array.from(new Set(mockGames.map(g => g.city)))]
+  const cities = ['all', ...Array.from(new Set(games.map(g => g.city)))]
 
-  const results = mockGames.filter(g => {
+  const results = games.filter(g => {
     const matchQ = !query || g.title.toLowerCase().includes(query.toLowerCase()) ||
                    g.location_name.toLowerCase().includes(query.toLowerCase())
     const matchF = format === 'all' || g.format === format

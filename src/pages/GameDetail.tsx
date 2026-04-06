@@ -1,7 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, MapPin, Clock, Users, Share2, UserPlus, MessageCircle, Trophy } from 'lucide-react'
-import { mockGames, getOccupancyPercent } from '../data/mockData'
+import { ArrowLeft, ArrowRight, MapPin, Clock, Users, Share2, UserPlus, UserMinus, MessageCircle, Trophy } from 'lucide-react'
+import { getOccupancyPercent } from '../data/mockData'
 import { useLang } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import { useGame } from '../contexts/GameContext'
 
 const positionColors: Record<string, string> = {
   GK: '#FF5A1F', DEF: '#005A3C', MID: '#52b48d', FWD: '#FF7A47', ANY: '#8ecfb4',
@@ -21,7 +23,10 @@ export default function GameDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { t, lang, isRTL } = useLang()
-  const game = mockGames.find(g => g.id === id)
+  const { user } = useAuth()
+  const { games, joinGame, leaveGame, hasJoined } = useGame()
+
+  const game = games.find(g => g.id === id)
 
   if (!game) {
     return (
@@ -34,12 +39,35 @@ export default function GameDetail() {
     )
   }
 
-  const isFull = game.status === 'full'
-  const spots  = game.max_players - game.current_players
-  const pct    = getOccupancyPercent(game)
-  const teamA  = mockPlayers.filter(p => p.team === 'A')
-  const teamB  = mockPlayers.filter(p => p.team === 'B')
+  const g        = game  // non-nullable after the early return above
+  const joined   = hasJoined(g.id)
+  const isFull   = g.status === 'full'
+  const spots    = g.max_players - g.current_players
+  const pct      = getOccupancyPercent(g)
+  const teamA    = mockPlayers.filter(p => p.team === 'A')
+  const teamB    = mockPlayers.filter(p => p.team === 'B')
   const BackIcon = isRTL ? ArrowRight : ArrowLeft
+
+  async function handleShare() {
+    const url  = window.location.href
+    const text = lang === 'he'
+      ? `הצטרף למשחק "${g.title}" ב-${g.location_name}`
+      : `Join the game "${g.title}" at ${g.location_name}`
+    if (navigator.share) {
+      await navigator.share({ title: 'Kadur', text, url }).catch(() => {})
+    } else {
+      await navigator.clipboard.writeText(url).catch(() => {})
+    }
+  }
+
+  async function handleJoinLeave() {
+    if (!user) { navigate('/auth'); return }
+    if (joined) {
+      await leaveGame(g.id)
+    } else {
+      await joinGame(g.id)
+    }
+  }
 
   return (
     <div className="min-h-screen page-enter" style={{ paddingBottom: 'calc(80px + var(--safe-bottom))' }}>
@@ -53,7 +81,7 @@ export default function GameDetail() {
         <button onClick={() => navigate(-1)} className="w-10 h-10 glass-card flex items-center justify-center active:scale-90 transition-transform">
           <BackIcon size={18} />
         </button>
-        <button className="w-10 h-10 glass-card flex items-center justify-center active:scale-90 transition-transform">
+        <button onClick={handleShare} className="w-10 h-10 glass-card flex items-center justify-center active:scale-90 transition-transform">
           <Share2 size={16} />
         </button>
       </div>
@@ -62,19 +90,20 @@ export default function GameDetail() {
       <div className="relative z-10 px-5 mb-5">
         <div className="glass-card p-5">
           <div className="flex items-center gap-2 mb-3">
-            <span className={game.format === '5v5' ? 'badge-green' : game.format === '7v7' ? 'badge-ember' : 'badge-gray'}>{game.format}</span>
+            <span className={g.format === '5v5' ? 'badge-green' : g.format === '7v7' ? 'badge-ember' : 'badge-gray'}>{g.format}</span>
+            {joined && <span className="badge-green">{lang === 'he' ? 'נרשמת' : 'Joined'}</span>}
             {isFull ? <span className="badge-ember">{t.game.full}</span> : <span className="badge-green">{t.game.open}</span>}
           </div>
-          <h1 className="font-display text-3xl tracking-wider mb-1">{game.title}</h1>
-          {game.description && <p className="text-secondary text-sm font-body mb-4">{game.description}</p>}
+          <h1 className="font-display text-3xl tracking-wider mb-1">{g.title}</h1>
+          {g.description && <p className="text-secondary text-sm font-body mb-4">{g.description}</p>}
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-3 text-secondary">
               <MapPin size={14} className="text-pitch-400 flex-shrink-0" />
-              <span>{game.location_name}, {game.city}</span>
+              <span>{g.location_name}, {g.city}</span>
             </div>
             <div className="flex items-center gap-3 text-secondary">
               <Clock size={14} className="text-ember-400 flex-shrink-0" />
-              <span>{new Date(game.scheduled_at).toLocaleString(lang === 'he' ? 'he-IL' : 'en-US', {
+              <span>{new Date(g.scheduled_at).toLocaleString(lang === 'he' ? 'he-IL' : 'en-US', {
                 weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
               })}</span>
             </div>
@@ -88,7 +117,7 @@ export default function GameDetail() {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm">
               <Users size={14} className="text-pitch-400" />
-              <span className="font-heading font-semibold">{game.current_players} / {game.max_players} {t.game.players}</span>
+              <span className="font-heading font-semibold">{g.current_players} / {g.max_players} {t.game.players}</span>
             </div>
             <span className={`text-sm font-heading font-bold ${isFull ? 'text-ember-400' : 'text-pitch-400'}`}>
               {isFull ? t.game.no_spots : `${spots} ${spots === 1 ? t.game.spot_left : t.game.spots_left}`}
@@ -145,14 +174,16 @@ export default function GameDetail() {
 
       {/* Actions */}
       <div className="relative z-10 px-5 flex gap-3">
-        {!isFull && (
-          <button className="btn-primary flex-1 flex items-center justify-center gap-2 py-4">
-            <UserPlus size={17} />
-            {t.game.join}
+        {(!isFull || joined) && (
+          <button
+            onClick={handleJoinLeave}
+            className={joined ? 'btn-ghost flex-1 flex items-center justify-center gap-2 py-4' : 'btn-primary flex-1 flex items-center justify-center gap-2 py-4'}
+          >
+            {joined ? <><UserMinus size={17} />{lang === 'he' ? 'עזוב' : 'Leave'}</> : <><UserPlus size={17} />{t.game.join}</>}
           </button>
         )}
         <button
-          onClick={() => navigate(`/game/${game.id}/chat`)}
+          onClick={() => navigate(`/game/${g.id}/chat`)}
           className="btn-ghost flex items-center justify-center gap-2 py-4 px-5"
         >
           <MessageCircle size={17} />

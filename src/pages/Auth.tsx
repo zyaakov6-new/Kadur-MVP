@@ -21,48 +21,41 @@ export default function Auth() {
   const { login, user } = useAuth()
   const he = lang === 'he'
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user) navigate('/', { replace: true })
-  }, [user])
+  }, [user])  // eslint-disable-line
 
-  // Default to signup tab if coming from onboarding
-  const defaultTab: Tab = (location.state as any)?.tab ?? 'signin'
-  const [tab, setTab]         = useState<Tab>(defaultTab)
+  const defaultTab: Tab = (location.state as { tab?: Tab })?.tab ?? 'signin'
+  const [tab, setTab]           = useState<Tab>(defaultTab)
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
 
-  // Sign-in fields
   const [siEmail, setSiEmail] = useState('')
   const [siPass,  setSiPass]  = useState('')
 
-  // Sign-up fields
   const [suName,  setSuName]  = useState('')
   const [suEmail, setSuEmail] = useState('')
   const [suPass,  setSuPass]  = useState('')
   const [suCity,  setSuCity]  = useState('')
   const [suPos,   setSuPos]   = useState('MID')
 
-  function handleSignIn() {
+  async function handleSignIn() {
     if (!siEmail || !siPass) { setError(he ? 'מלא את כל השדות' : 'Fill in all fields'); return }
     setError(''); setLoading(true)
-    setTimeout(() => {
-      login({ email: siEmail, name: siEmail.split('@')[0], isNewUser: false })
-      setLoading(false)
-    }, 900)
+    const result = await login({ email: siEmail, name: siEmail.split('@')[0], password: siPass, isNewUser: false })
+    setLoading(false)
+    if (result.error) setError(result.error)
   }
 
-  function handleSignUp() {
+  async function handleSignUp() {
     if (!suName || !suEmail || !suPass) { setError(he ? 'מלא את כל השדות' : 'Fill in all fields'); return }
     if (suPass.length < 6) { setError(he ? 'סיסמה חייבת להיות לפחות 6 תווים' : 'Password must be at least 6 characters'); return }
     setError(''); setLoading(true)
-    setTimeout(() => {
-      login({ email: suEmail, name: suName, city: suCity, position: suPos, isNewUser: true })
-      setLoading(false)
-      // Onboarding for new users
-      navigate('/onboarding', { replace: true })
-    }, 900)
+    const result = await login({ email: suEmail, name: suName, city: suCity, position: suPos, password: suPass, isNewUser: true })
+    setLoading(false)
+    if (result.error) { setError(result.error); return }
+    navigate('/', { replace: true })
   }
 
   const ChevronIcon = isRTL ? ArrowLeft : ArrowRight
@@ -72,14 +65,12 @@ export default function Auth() {
       className="min-h-screen flex flex-col px-5 relative overflow-hidden"
       style={{ background: '#0a0e0c' }}
     >
-      {/* Backgrounds */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="gradient-radial-green absolute inset-0" />
         <div className="gradient-radial-ember absolute inset-0" />
         <div className="pitch-lines absolute inset-0 opacity-20" />
       </div>
 
-      {/* Language toggle top-right */}
       <div className="relative z-10 flex justify-end pt-14">
         <button
           onClick={toggleLang}
@@ -93,7 +84,6 @@ export default function Auth() {
         </button>
       </div>
 
-      {/* Logo */}
       <div className="relative z-10 flex flex-col items-center mt-6 mb-8">
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3"
@@ -103,11 +93,10 @@ export default function Auth() {
         </div>
         <h1 className="font-display text-4xl tracking-wider" style={{ color: '#52b48d' }}>KADUR</h1>
         <p className="text-muted text-xs font-body mt-1">
-          {he ? 'משחק הפיקאפ הטוב בעולם' : 'The world\'s best pickup football app'}
+          {he ? 'משחק הפיקאפ הטוב בעולם' : "The world's best pickup football app"}
         </p>
       </div>
 
-      {/* Tab switcher */}
       <div
         className="relative z-10 flex rounded-2xl p-1 mb-5"
         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
@@ -123,9 +112,7 @@ export default function Auth() {
               boxShadow: tab === t ? '0 4px 16px rgba(0,90,60,0.35)' : 'none',
             }}
           >
-            {t === 'signin'
-              ? (he ? 'כניסה' : 'Sign In')
-              : (he ? 'הרשמה' : 'Sign Up')}
+            {t === 'signin' ? (he ? 'כניסה' : 'Sign In') : (he ? 'הרשמה' : 'Sign Up')}
           </button>
         ))}
       </div>
@@ -139,63 +126,35 @@ export default function Auth() {
             </label>
             <div className="relative">
               <Mail size={14} className="absolute top-1/2 -translate-y-1/2 text-muted pointer-events-none" style={{ insetInlineStart: '14px' }} />
-              <input
-                type="email"
-                value={siEmail}
-                onChange={e => setSiEmail(e.target.value)}
+              <input type="email" value={siEmail} onChange={e => setSiEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSignIn()}
-                placeholder={he ? 'your@email.com' : 'your@email.com'}
-                className="input-glass"
-                style={{ paddingInlineStart: '38px' }}
-                autoComplete="email"
-              />
+                placeholder="your@email.com" className="input-glass"
+                style={{ paddingInlineStart: '38px' }} autoComplete="email" />
             </div>
           </div>
-
           <div>
             <label className="block text-[10px] font-heading font-semibold uppercase tracking-widest text-muted mb-1.5">
               {he ? 'סיסמה' : 'Password'}
             </label>
             <div className="relative">
               <Lock size={14} className="absolute top-1/2 -translate-y-1/2 text-muted pointer-events-none" style={{ insetInlineStart: '14px' }} />
-              <input
-                type={showPass ? 'text' : 'password'}
-                value={siPass}
-                onChange={e => setSiPass(e.target.value)}
+              <input type={showPass ? 'text' : 'password'} value={siPass} onChange={e => setSiPass(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSignIn()}
-                placeholder="••••••••"
-                className="input-glass"
-                style={{ paddingInlineStart: '38px', paddingInlineEnd: '42px' }}
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPass(v => !v)}
-                className="absolute top-1/2 -translate-y-1/2 text-muted"
-                style={{ insetInlineEnd: '14px' }}
-              >
+                placeholder="••••••••" className="input-glass"
+                style={{ paddingInlineStart: '38px', paddingInlineEnd: '42px' }} autoComplete="current-password" />
+              <button type="button" onClick={() => setShowPass(v => !v)}
+                className="absolute top-1/2 -translate-y-1/2 text-muted" style={{ insetInlineEnd: '14px' }}>
                 {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <button className="text-[10px] font-heading text-secondary hover:text-pitch-400 transition-colors">
-              {he ? 'שכחת סיסמה?' : 'Forgot password?'}
-            </button>
-          </div>
-
           {error && (
-            <p className="text-xs text-red-400 font-body bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-              {error}
-            </p>
+            <p className="text-xs text-red-400 font-body bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
           )}
 
-          <button
-            onClick={handleSignIn}
-            disabled={loading}
-            className="btn-primary w-full py-4 flex items-center justify-center gap-2 mt-1"
-          >
+          <button onClick={handleSignIn} disabled={loading}
+            className="btn-primary w-full py-4 flex items-center justify-center gap-2 mt-1">
             {loading
               ? <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               : <>{he ? 'כניסה' : 'Sign In'} <ChevronIcon size={16} /></>
@@ -204,11 +163,7 @@ export default function Auth() {
 
           <p className="text-center text-xs text-secondary font-body pt-1">
             {he ? 'אין לך חשבון?' : "Don't have an account?"}{' '}
-            <button
-              onClick={() => { setTab('signup'); setError('') }}
-              className="font-semibold"
-              style={{ color: '#52b48d' }}
-            >
+            <button onClick={() => { setTab('signup'); setError('') }} className="font-semibold" style={{ color: '#52b48d' }}>
               {he ? 'הרשמה' : 'Sign up'}
             </button>
           </p>
@@ -218,96 +173,57 @@ export default function Auth() {
       {/* ── SIGN UP ── */}
       {tab === 'signup' && (
         <div className="relative z-10 glass-card p-5 space-y-3">
-          {/* Name */}
           <div>
             <label className="block text-[10px] font-heading font-semibold uppercase tracking-widest text-muted mb-1.5">
               {he ? 'שם מלא' : 'Full Name'} *
             </label>
             <div className="relative">
               <User size={14} className="absolute top-1/2 -translate-y-1/2 text-muted pointer-events-none" style={{ insetInlineStart: '14px' }} />
-              <input
-                type="text"
-                value={suName}
-                onChange={e => setSuName(e.target.value)}
-                placeholder={he ? 'ליאו מסי' : 'Lionel Messi'}
-                className="input-glass"
-                style={{ paddingInlineStart: '38px' }}
-                autoComplete="name"
-              />
+              <input type="text" value={suName} onChange={e => setSuName(e.target.value)}
+                placeholder={he ? 'ליאו מסי' : 'Lionel Messi'} className="input-glass"
+                style={{ paddingInlineStart: '38px' }} autoComplete="name" />
             </div>
           </div>
-
-          {/* Email */}
           <div>
             <label className="block text-[10px] font-heading font-semibold uppercase tracking-widest text-muted mb-1.5">
               {he ? 'אימייל' : 'Email'} *
             </label>
             <div className="relative">
               <Mail size={14} className="absolute top-1/2 -translate-y-1/2 text-muted pointer-events-none" style={{ insetInlineStart: '14px' }} />
-              <input
-                type="email"
-                value={suEmail}
-                onChange={e => setSuEmail(e.target.value)}
-                placeholder="your@email.com"
-                className="input-glass"
-                style={{ paddingInlineStart: '38px' }}
-                autoComplete="email"
-              />
+              <input type="email" value={suEmail} onChange={e => setSuEmail(e.target.value)}
+                placeholder="your@email.com" className="input-glass"
+                style={{ paddingInlineStart: '38px' }} autoComplete="email" />
             </div>
           </div>
-
-          {/* Password */}
           <div>
             <label className="block text-[10px] font-heading font-semibold uppercase tracking-widest text-muted mb-1.5">
               {he ? 'סיסמה' : 'Password'} *
             </label>
             <div className="relative">
               <Lock size={14} className="absolute top-1/2 -translate-y-1/2 text-muted pointer-events-none" style={{ insetInlineStart: '14px' }} />
-              <input
-                type={showPass ? 'text' : 'password'}
-                value={suPass}
-                onChange={e => setSuPass(e.target.value)}
-                placeholder="••••••••"
-                className="input-glass"
-                style={{ paddingInlineStart: '38px', paddingInlineEnd: '42px' }}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPass(v => !v)}
-                className="absolute top-1/2 -translate-y-1/2 text-muted"
-                style={{ insetInlineEnd: '14px' }}
-              >
+              <input type={showPass ? 'text' : 'password'} value={suPass} onChange={e => setSuPass(e.target.value)}
+                placeholder="••••••••" className="input-glass"
+                style={{ paddingInlineStart: '38px', paddingInlineEnd: '42px' }} autoComplete="new-password" />
+              <button type="button" onClick={() => setShowPass(v => !v)}
+                className="absolute top-1/2 -translate-y-1/2 text-muted" style={{ insetInlineEnd: '14px' }}>
                 {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
           </div>
-
-          {/* City + Position row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-heading font-semibold uppercase tracking-widest text-muted mb-1.5">
                 {he ? 'עיר' : 'City'}
               </label>
-              <input
-                type="text"
-                value={suCity}
-                onChange={e => setSuCity(e.target.value)}
-                placeholder={he ? 'תל אביב' : 'Tel Aviv'}
-                className="input-glass"
-                autoComplete="address-level2"
-              />
+              <input type="text" value={suCity} onChange={e => setSuCity(e.target.value)}
+                placeholder={he ? 'תל אביב' : 'Tel Aviv'} className="input-glass" autoComplete="address-level2" />
             </div>
             <div>
               <label className="block text-[10px] font-heading font-semibold uppercase tracking-widest text-muted mb-1.5">
                 {he ? 'עמדה' : 'Position'}
               </label>
-              <select
-                value={suPos}
-                onChange={e => setSuPos(e.target.value)}
-                className="input-glass appearance-none cursor-pointer"
-                style={{ background: 'rgba(255,255,255,0.05)' }}
-              >
+              <select value={suPos} onChange={e => setSuPos(e.target.value)}
+                className="input-glass appearance-none cursor-pointer" style={{ background: 'rgba(255,255,255,0.05)' }}>
                 {POSITIONS.map(p => (
                   <option key={p.value} value={p.value} style={{ background: '#0f1510' }}>
                     {he ? p.labelHe : p.labelEn}
@@ -318,16 +234,11 @@ export default function Auth() {
           </div>
 
           {error && (
-            <p className="text-xs text-red-400 font-body bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-              {error}
-            </p>
+            <p className="text-xs text-red-400 font-body bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
           )}
 
-          <button
-            onClick={handleSignUp}
-            disabled={loading}
-            className="btn-ember w-full py-4 flex items-center justify-center gap-2 mt-1"
-          >
+          <button onClick={handleSignUp} disabled={loading}
+            className="btn-ember w-full py-4 flex items-center justify-center gap-2 mt-1">
             {loading
               ? <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               : <>{he ? '⚽ צור חשבון' : '⚽ Create Account'}</>
@@ -336,11 +247,7 @@ export default function Auth() {
 
           <p className="text-center text-xs text-secondary font-body pt-1">
             {he ? 'כבר יש לך חשבון?' : 'Already have an account?'}{' '}
-            <button
-              onClick={() => { setTab('signin'); setError('') }}
-              className="font-semibold"
-              style={{ color: '#52b48d' }}
-            >
+            <button onClick={() => { setTab('signin'); setError('') }} className="font-semibold" style={{ color: '#52b48d' }}>
               {he ? 'כניסה' : 'Sign in'}
             </button>
           </p>

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Zap, TrendingUp } from 'lucide-react'
 import GameCard from '../components/GameCard'
-import { mockGames } from '../data/mockData'
 import { useLang } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useGame } from '../contexts/GameContext'
+import type { Game } from '../types'
 
 const XP_PER_LEVEL = 500
 
@@ -15,15 +16,47 @@ function getGreeting(t: ReturnType<typeof useLang>['t']) {
   return t.home.good_evening
 }
 
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 export default function Home() {
   const navigate = useNavigate()
   const { t } = useLang()
   const { user } = useAuth()
+  const { games } = useGame()
   const [filter, setFilter] = useState<'all' | '5v5' | '7v7' | '11v11'>('all')
+  const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
   const profile = user!
 
-  const filtered = filter === 'all' ? mockGames : mockGames.filter(g => g.format === filter)
-  const nearbyGames = filtered.filter(g => g.status !== 'finished').slice(0, 4)
+  // Get user location
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition(
+      pos => setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {}
+    )
+  }, [])
+
+  // Attach distances and filter
+  const gamesWithDist: Game[] = games.map(g => ({
+    ...g,
+    distance_km: userPos
+      ? Math.round(haversineKm(userPos.lat, userPos.lng, g.location_lat, g.location_lng) * 10) / 10
+      : undefined,
+  }))
+
+  const filtered = filter === 'all' ? gamesWithDist : gamesWithDist.filter(g => g.format === filter)
+  const nearbyGames = filtered
+    .filter(g => g.status !== 'finished')
+    .sort((a, b) => userPos && a.distance_km != null && b.distance_km != null
+      ? a.distance_km - b.distance_km
+      : 0)
+    .slice(0, 4)
 
   const xpProgress = (profile.stats.xp % XP_PER_LEVEL) / XP_PER_LEVEL
   const xpToNext   = XP_PER_LEVEL - (profile.stats.xp % XP_PER_LEVEL)
@@ -53,12 +86,13 @@ export default function Home() {
               <Zap size={13} className="text-ember-400" />
               <span className="font-heading font-bold text-sm text-primary">{t.home.level} {profile.stats.level}</span>
             </div>
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center font-heading font-bold text-sm"
+            <button
+              onClick={() => navigate('/profile')}
+              className="w-10 h-10 rounded-full flex items-center justify-center font-heading font-bold text-sm active:scale-90 transition-transform"
               style={{ background: 'linear-gradient(135deg, #005A3C, #007a50)', boxShadow: '0 0 0 2px rgba(0,90,60,0.5)' }}
             >
-              {profile.name.split(' ').map(n => n[0]).join('')}
-            </div>
+              {profile.name.split(' ').map((n: string) => n[0]).join('')}
+            </button>
           </div>
         </div>
 
@@ -136,7 +170,12 @@ export default function Home() {
         </div>
 
         <div className="space-y-3">
-          {nearbyGames.map((game, i) => (
+          {nearbyGames.length === 0 ? (
+            <div className="glass-card py-10 flex flex-col items-center gap-2 text-center">
+              <span className="text-3xl">⚽</span>
+              <p className="font-heading font-bold text-sm">{t.explore.no_games}</p>
+            </div>
+          ) : nearbyGames.map((game, i) => (
             <GameCard
               key={game.id}
               game={game}
@@ -150,12 +189,13 @@ export default function Home() {
       {/* Create Game FAB */}
       <button
         onClick={() => navigate('/create-game')}
-        className="fixed z-50 flex items-center gap-2 px-5 py-3.5 rounded-2xl font-heading font-bold text-sm uppercase tracking-wider animate-pulse-green"
+        className="fixed z-50 flex items-center gap-2 px-5 py-3.5 rounded-2xl font-heading font-bold text-sm uppercase tracking-wider"
         style={{
           bottom: 'calc(80px + var(--safe-bottom) + 16px)',
           insetInlineEnd: '20px',
-          background: 'linear-gradient(135deg, #007a50, #005A3C)',
-          boxShadow: '0 8px 32px rgba(0,90,60,0.45)',
+          background: 'linear-gradient(135deg, #00c36b, #007a50)',
+          boxShadow: '0 8px 32px rgba(0,195,107,0.45)',
+          color: '#fff',
         }}
       >
         <Plus size={18} strokeWidth={2.5} />

@@ -1,29 +1,91 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, MapPin, Clock, ChevronDown } from 'lucide-react'
-import type { GameFormat } from '../types'
+import { ArrowLeft, ArrowRight, MapPin, Clock, ChevronDown, Check } from 'lucide-react'
+import type { Game, GameFormat } from '../types'
 import { useLang } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import { useGame } from '../contexts/GameContext'
 
 export default function CreateGame() {
   const navigate = useNavigate()
-  const { t, isRTL } = useLang()
+  const { t, isRTL, lang } = useLang()
+  const { user } = useAuth()
+  const { addGame } = useGame()
 
   const [form, setForm] = useState({
     title: '', description: '', format: '5v5' as GameFormat,
     location: '', date: '', time: '', city: 'Tel Aviv',
   })
-  const [step, setStep] = useState(1)
+  const [step, setStep]         = useState(1)
+  const [loading, setLoading]   = useState(false)
+  const [published, setPublished] = useState(false)
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
-
-  const handleNext = () => step < 3 ? setStep(s => s + 1) : navigate('/')
 
   const formatOptions: GameFormat[] = ['5v5', '7v7', '11v11']
   const cityOptions = ['Tel Aviv', 'Jerusalem', 'Haifa', "Be'er Sheva", 'Ramat Gan']
   const playersLabel: Record<GameFormat, string> = {
     '5v5': t.create.players_10, '7v7': t.create.players_14, '11v11': t.create.players_22,
   }
+  const maxPlayers: Record<GameFormat, number> = { '5v5': 10, '7v7': 14, '11v11': 22 }
 
-  const BackIcon    = isRTL ? ArrowRight : ArrowLeft
+  const BackIcon = isRTL ? ArrowRight : ArrowLeft
+
+  async function handleNext() {
+    if (step < 3) { setStep(s => s + 1); return }
+
+    // Publish
+    if (!user) return
+    setLoading(true)
+
+    const scheduledAt = form.date && form.time
+      ? new Date(`${form.date}T${form.time}`).toISOString()
+      : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+    const game: Game = {
+      id:              `game-${Date.now()}`,
+      title:           form.title,
+      description:     form.description || undefined,
+      format:          form.format,
+      status:          'open',
+      location_name:   form.location || form.city,
+      location_lat:    32.0853,
+      location_lng:    34.7818,
+      city:            form.city,
+      scheduled_at:    scheduledAt,
+      max_players:     maxPlayers[form.format],
+      current_players: 1,
+      creator_id:      user.id,
+      participant_ids: [user.id],
+      created_at:      new Date().toISOString(),
+    }
+
+    await addGame(game)
+    setLoading(false)
+    setPublished(true)
+  }
+
+  if (published) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-5" style={{ background: '#0a0e0c' }}>
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="gradient-radial-green absolute inset-0" />
+        </div>
+        <div className="relative z-10 flex flex-col items-center gap-5 text-center">
+          <div className="w-20 h-20 rounded-full flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #007a50, #005A3C)', boxShadow: '0 0 40px rgba(0,122,80,0.5)' }}>
+            <Check size={36} style={{ color: '#fff' }} />
+          </div>
+          <div>
+            <h2 className="font-display text-3xl tracking-wider mb-2">{lang === 'he' ? 'המשחק נוצר!' : 'Game Created!'}</h2>
+            <p className="text-secondary text-sm font-body">{form.title}</p>
+          </div>
+          <button onClick={() => navigate('/')} className="btn-primary px-8 py-3.5">
+            {lang === 'he' ? 'חזרה הביתה' : 'Go Home'}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen page-enter" style={{ paddingBottom: 'calc(80px + var(--safe-bottom))' }}>
@@ -165,11 +227,14 @@ export default function CreateGame() {
       <div className="relative z-10 px-5 mt-8">
         <button
           onClick={handleNext}
+          disabled={(step === 1 && !form.title) || loading}
           className="btn-primary w-full py-4 flex items-center justify-center gap-2 text-base"
-          style={{ opacity: step === 1 && !form.title ? 0.5 : 1 }}
-          disabled={step === 1 && !form.title}
+          style={{ opacity: (step === 1 && !form.title) || loading ? 0.5 : 1 }}
         >
-          {step < 3 ? t.create.continue : t.create.publish}
+          {loading
+            ? <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+            : step < 3 ? t.create.continue : t.create.publish
+          }
         </button>
       </div>
     </div>

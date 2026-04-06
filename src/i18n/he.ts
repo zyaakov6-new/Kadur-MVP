@@ -105,7 +105,7 @@ const he = {
     tomorrow:   'מחר',
     in_days:    'בעוד {{n}} ימים',
   },
-} as const
+}
 
 export default he
 export type Translations = typeof he

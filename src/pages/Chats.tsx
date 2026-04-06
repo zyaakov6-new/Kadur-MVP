@@ -1,18 +1,25 @@
 import { useNavigate } from 'react-router-dom'
 import { MessageCircle, Clock } from 'lucide-react'
-import { mockGames } from '../data/mockData'
 import { useLang } from '../contexts/LanguageContext'
+import { useGame } from '../contexts/GameContext'
 
-const mockMessages: Record<string, { text: string; textHe: string; time: string; unread: number }> = {
-  'game-1': { text: 'Anyone bringing a ball?', textHe: 'מישהו מביא כדור?', time: '2m', unread: 3 },
-  'game-2': { text: 'See you all at 8 sharp!', textHe: 'נתראה ב-8 בדיוק!',  time: '15m', unread: 0 },
-  'game-3': { text: 'Game is on 🔥',            textHe: 'המשחק מתקיים 🔥',  time: '1h',  unread: 1 },
+const mockPreviews: Record<string, { text: string; textHe: string; time: string }> = {
+  'game-1': { text: 'Anyone bringing a ball?', textHe: 'מישהו מביא כדור?', time: '2m' },
+  'game-2': { text: 'See you all at 8 sharp!', textHe: 'נתראה ב-8 בדיוק!',  time: '15m' },
+  'game-3': { text: 'Game is on 🔥',            textHe: 'המשחק מתקיים 🔥',  time: '1h' },
 }
 
 export default function Chats() {
   const navigate = useNavigate()
   const { t, lang } = useLang()
-  const myGames = mockGames.filter(g => mockMessages[g.id])
+  const { games, joinedIds, readChats } = useGame()
+
+  const now = Date.now()
+  // Show chats only for games the user joined and that haven't finished more than 2h ago
+  const myGames = games.filter(g =>
+    joinedIds.has(g.id) &&
+    new Date(g.scheduled_at).getTime() > now - 2 * 60 * 60 * 1000
+  )
 
   return (
     <div className="min-h-screen page-enter" style={{ paddingBottom: 'calc(80px + var(--safe-bottom))' }}>
@@ -35,7 +42,8 @@ export default function Chats() {
           </div>
         ) : (
           myGames.map((game, i) => {
-            const msg = mockMessages[game.id]
+            const preview = mockPreviews[game.id]
+            const isUnread = !readChats.has(game.id)
             return (
               <button
                 key={game.id}
@@ -51,7 +59,6 @@ export default function Chats() {
                     >
                       ⚽
                     </div>
-                    {/* Online dot */}
                     <span className="absolute -bottom-0.5 -end-0.5 w-3 h-3 rounded-full border-2 bg-green-400" style={{ borderColor: '#0a0e0c' }} />
                   </div>
 
@@ -59,20 +66,18 @@ export default function Chats() {
                     <div className="flex items-center justify-between mb-0.5">
                       <h3 className="font-heading font-bold text-sm truncate">{game.title}</h3>
                       <span className="text-[10px] font-heading text-muted flex items-center gap-1 flex-shrink-0 ms-2">
-                        <Clock size={9} />{msg.time}
+                        <Clock size={9} />{preview?.time ?? ''}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-secondary text-xs truncate">
-                        {lang === 'he' ? msg.textHe : msg.text}
+                        {preview ? (lang === 'he' ? preview.textHe : preview.text) : (lang === 'he' ? 'התחל שיחה...' : 'Start chatting...')}
                       </p>
-                      {msg.unread > 0 && (
+                      {isUnread && (
                         <span
-                          className="flex-shrink-0 ms-2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-heading font-bold"
-                          style={{ background: '#FF5A1F', color: '#fff' }}
-                        >
-                          {msg.unread}
-                        </span>
+                          className="flex-shrink-0 ms-2 w-2 h-2 rounded-full"
+                          style={{ background: '#FF5A1F' }}
+                        />
                       )}
                     </div>
                   </div>
