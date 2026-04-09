@@ -9,7 +9,7 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, serverTimestamp,
 } from 'firebase/firestore'
-import { auth, db, FIREBASE_READY } from '../lib/firebase'
+import { auth, db, FIREBASE_READY, track } from '../lib/firebase'
 import type { Profile } from '../types'
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -153,10 +153,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           stats:      ZERO_STATS,
           created_at: serverTimestamp(),
         })
+        track('sign_up', { method: 'email', city: opts.city ?? 'unknown' })
         // onAuthStateChanged will fire and call loadOrCreateProfile
         return {}
       } else {
         await signInWithEmailAndPassword(auth, opts.email, opts.password)
+        track('login', { method: 'email' })
         return {}
       }
     } catch (e: unknown) {

@@ -6,7 +6,7 @@ import {
   query, orderBy, serverTimestamp,
   type Timestamp,
 } from 'firebase/firestore'
-import { db, FIREBASE_READY } from '../lib/firebase'
+import { db, FIREBASE_READY, track } from '../lib/firebase'
 import { useLang } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useGame } from '../contexts/GameContext'
@@ -182,6 +182,7 @@ export default function ChatRoom() {
       content:         text,
       created_at:      serverTimestamp(),
     })
+    track('send_message', { game_id: id! })
   }
 
   const BackIcon = isRTL ? ArrowRight : ArrowLeft

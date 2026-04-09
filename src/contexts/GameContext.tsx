@@ -3,10 +3,10 @@ import {
 } from 'react'
 import {
   collection, doc, addDoc, updateDoc, deleteDoc,
-  onSnapshot, query, orderBy, serverTimestamp,
+  onSnapshot, query, serverTimestamp,
   arrayUnion, arrayRemove, increment,
 } from 'firebase/firestore'
-import { db, FIREBASE_READY } from '../lib/firebase'
+import { db, FIREBASE_READY, track } from '../lib/firebase'
 import { mockGames } from '../data/mockData'
 import { useAuth } from './AuthContext'
 import type { Game } from '../types'
@@ -98,11 +98,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
 
     setLoading(true)
-    const q = query(collection(db, 'games'), orderBy('scheduled_at', 'asc'))
+    const q = query(collection(db, 'games'))
     const unsub = onSnapshot(q, snapshot => {
-      setGames(snapshot.docs.map(d => snapToGame(d.id, d.data())))
+      const sorted = snapshot.docs
+        .map(d => snapToGame(d.id, d.data()))
+        .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+      setGames(sorted)
       setLoading(false)
-    }, () => {
+    }, (err) => {
+      console.error('Firestore games listener error:', err)
       // On error fallback to mock
       setGames([...mockGames])
       setLoading(false)
@@ -140,6 +144,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         participant_ids: arrayUnion(user.id),
         current_players: increment(1),
       })
+      track('join_game', { game_id: id })
     } catch {
       // Revert
       setGames(gs => gs.map(g =>
@@ -178,6 +183,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         participant_ids: arrayRemove(user.id),
         current_players: increment(-1),
       })
+      track('leave_game', { game_id: id })
     } catch {
       // Revert
       setGames(gs => gs.map(g =>
@@ -219,9 +225,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         participant_ids: [user!.id],
         created_at:      serverTimestamp(),
       })
-      // onSnapshot will update games list automatically;
-      // just make sure joinedIds picks up the new game (it derives from games)
-      // The addDoc returns the real ID — the snapshot listener handles the rest
+      track('create_game', { format: game.format, city: game.city })
       void docRef  // suppress unused warning
     } catch (e) {
       console.error('addGame failed', e)
